@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { Subject } from "@/types"
@@ -22,6 +22,14 @@ const YEAR_LEVELS: YearLevel[] = ["1st Year", "2nd Year", "3rd Year", "4th Year"
 const PROGRAMS:    Program[]   = ["BSIT", "BSCPE", "BSCS"]
 
 export default function EnrollPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-sm text-gray-500">Loading enrollment form…</div>}>
+      <EnrollForm />
+    </Suspense>
+  )
+}
+
+function EnrollForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const typeParam    = searchParams.get("type")

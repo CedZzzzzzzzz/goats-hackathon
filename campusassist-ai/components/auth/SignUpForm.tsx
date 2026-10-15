@@ -30,7 +30,6 @@ export function SignUpForm({ onGoSignIn }: SignUpFormProps) {
   const [pw,    setPw]    = useState("")
 
   const [errors, setErrors] = useState<Errors>({})
-  const [ok,     setOk]     = useState(false)
   const [loading, setLoading] = useState(false)
 
   function checkField(k: keyof Errors, v: string) {
@@ -52,7 +51,7 @@ export function SignUpForm({ onGoSignIn }: SignUpFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!validateAll()) { setOk(false); return }
+    if (!validateAll()) return
 
     setLoading(true)
     const { data, error } = await supabaseBrowser.auth.signUp({
@@ -71,7 +70,6 @@ export function SignUpForm({ onGoSignIn }: SignUpFormProps) {
 
     if (error) {
       setErrors({ email: error.message })
-      setOk(false)
       return
     }
 
@@ -79,7 +77,6 @@ export function SignUpForm({ onGoSignIn }: SignUpFormProps) {
     // (it doesn't return an error to prevent email enumeration)
     if (!data.user) {
       setErrors({ email: "An account with this email already exists. Please sign in instead." })
-      setOk(false)
       return
     }
 

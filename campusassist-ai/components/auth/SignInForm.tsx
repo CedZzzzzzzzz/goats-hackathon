@@ -17,11 +17,7 @@ const ERR: Record<string, string> = {
   pw2:  "Enter your password",
 }
 
-interface SignInFormProps {
-  onGoSignUp: () => void
-}
-
-export function SignInForm({ onGoSignUp }: SignInFormProps) {
+export function SignInForm() {
   const router = useRouter()
   const [sid2, setSid2] = useState("")
   const [pw2,  setPw2]  = useState("")

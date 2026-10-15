@@ -1,8 +1,8 @@
 # Auth Implementation — Sign-up / Sign-in
 
-> Last updated: October 2025  
-> Route: `/auth`  
-> Components: `components/auth/`  
+> Last updated: October 2025
+> Route: `/auth`
+> Components: `components/auth/`
 > Utilities: `lib/studentId.ts`, `lib/validators.ts`, `lib/supabase-browser.ts`
 
 ---

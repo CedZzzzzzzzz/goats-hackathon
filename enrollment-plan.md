@@ -4,6 +4,8 @@
 > Stack: Next.js (TypeScript) · Tailwind · shadcn/ui · Supabase · Zod · React Bits
 > 📎 See [`agents.md`](agents.md) for bootstrap commands, full endpoint contracts, component map, and Bob task format.
 
+> **Current admin rebuild checkpoint (`feat/admin-v2`):** Phases 0–3 are implemented. The admin shell is isolated, the dashboard and requests view use live enrollment data, and review actions enforce pending irregular transitions. Phase 4 reports/export and Phase 5 final visual polish remain. The original MVP tiers and timeline below describe product intent, not a verified completion report.
+
 ---
 
 ## 1. Overview
@@ -108,10 +110,10 @@ Success screen  →  "Pending approval" + ENR number + selected subject list
 Role-switch toggle (header)  →  Staff View
   │
   ▼  GET /api/enrollments  (x-demo-role: staff)
-/admin dashboard  →  Table of all enrollments  (filter: Pending tab for irregular)
+/admin dashboard  →  Current enrollments table (Pending / All filter)
   │
   ▼  click row
-Detail panel  →  Student info + subject list
+Expanded table row  →  Subject list (not a separate detail panel)
   "Confirm" / "Reject" button  →  PATCH /api/enrollments/[enr]  (x-demo-role: staff)
   │
   ▼
@@ -131,10 +133,10 @@ Keyword matcher  →  returns AIResponse from kb.json
 
 ### 4.5 Enrollment Number Format
 ```
-ENR-{YYYY}-{4-digit zero-padded sequence}
-Example: ENR-2025-0042
+ENR-{5-digit zero-padded sequence}-MN-{0|1}
+Example: ENR-00042-MN-1  (0 = regular, 1 = irregular)
 ```
-Generated server-side: insert row first, get the returned `id`, then update `enr_number` using `generateEnrNumber(id)`.
+Generated server-side using the inserted row ID and student type via `generateEnrNumber(id, studentType)`.
 
 ---
 
@@ -267,7 +269,7 @@ All error responses follow `{ error: string }`.
 ```json
 {
   "full_name":     "Sam Torres",
-  "student_id":   "S10099",
+  "student_id":   "2024-10099",
   "student_type": "irregular",
   "year_level":   "2nd Year",
   "program":      "BSIT",
@@ -278,7 +280,7 @@ All error responses follow `{ error: string }`.
 **Response 201**
 ```json
 {
-  "enr_number": "ENR-2025-0005",
+  "enr_number": "ENR-00005-MN-1",
   "status":     "pending",
   "subjects": [
     { "code": "IT101", "name": "Introduction to Computing", "units": 3 },
@@ -291,7 +293,7 @@ All error responses follow `{ error: string }`.
 **Response 201 — regular student (no subject_codes in request)**
 ```json
 {
-  "enr_number": "ENR-2025-0006",
+  "enr_number": "ENR-00006-MN-0",
   "status":     "confirmed",
   "subjects": [
     { "code": "IT201", "name": "Data Structures and Algorithms", "units": 3 },
@@ -319,12 +321,12 @@ All error responses follow `{ error: string }`.
 
 **Purpose:** Fetch enrollment status and full detail for a given ENR number. Used by the student tracking page.
 
-**URL param:** `enr` — e.g. `ENR-2025-0005`
+**URL param:** `enr` — e.g. `ENR-00005-MN-1`
 
 **Response 200**
 ```json
 {
-  "enr_number":   "ENR-2025-0005",
+  "enr_number":   "ENR-00005-MN-1",
   "full_name":    "Sam Torres",
   "student_type": "irregular",
   "year_level":   "2nd Year",
@@ -358,9 +360,9 @@ All error responses follow `{ error: string }`.
 ```json
 [
   {
-    "enr_number":   "ENR-2025-0001",
+    "enr_number":   "ENR-00001-MN-0",
     "full_name":    "Alex Rivera",
-    "student_id":  "S10001",
+    "student_id":  "2024-10001",
     "student_type": "regular",
     "year_level":   "2nd Year",
     "program":      "BSIT",
@@ -383,7 +385,7 @@ All error responses follow `{ error: string }`.
 
 **Purpose:** Confirm or reject a pending enrollment (admin only). Only valid for irregular enrollments in `pending` status.
 
-**URL param:** `enr` — e.g. `ENR-2025-0002`
+**URL param:** `enr` — e.g. `ENR-00002-MN-1`
 
 **Request**
 ```json
@@ -393,7 +395,7 @@ All error responses follow `{ error: string }`.
 **Response 200**
 ```json
 {
-  "enr_number": "ENR-2025-0002",
+  "enr_number": "ENR-00002-MN-1",
   "status":     "confirmed",
   "updated_at": "2025-07-01T15:30:00Z"
 }
@@ -608,10 +610,10 @@ insert into curricula (year_level, program, subject_code, subject_name, units) v
 **Enrollments (demo rows)**
 ```sql
 insert into enrollments (enr_number, full_name, student_id, student_type, year_level, program, status) values
-  ('ENR-2025-0001', 'Alex Rivera',  'S10001', 'regular',   '2nd Year', 'BSIT', 'confirmed'),
-  ('ENR-2025-0002', 'Jordan Lee',   'S10002', 'irregular', '3rd Year', 'BSIT', 'pending'),
-  ('ENR-2025-0003', 'Morgan Patel', 'S10003', 'irregular', '2nd Year', 'BSIT', 'confirmed'),
-  ('ENR-2025-0004', 'Casey Nguyen', 'S10004', 'regular',   '1st Year', 'BSIT', 'confirmed');
+  ('ENR-00001-MN-0', 'Alex Rivera',  '2024-10001', 'regular',   '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-00002-MN-1', 'Jordan Lee',   '2024-10002', 'irregular', '3rd Year', 'BSIT', 'pending'),
+  ('ENR-00003-MN-1', 'Morgan Patel', '2024-10003', 'irregular', '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-00004-MN-0', 'Casey Nguyen', '2025-10004', 'regular',   '1st Year', 'BSIT', 'confirmed');
 ```
 
 ### Supabase RLS
@@ -656,13 +658,17 @@ The AI is a **retrieval + template engine, not a generative model**. No vector D
 ```
 campusassist-ai/
 ├── app/
-│   ├── layout.tsx                        # Root layout: header + RoleToggle + nav
-│   ├── page.tsx                          # Landing page + hero + CTAs
-│   ├── chat/page.tsx                     # AI chat interface
-│   ├── enroll/page.tsx                   # Enrollment form (info + type + subject picker)
-│   ├── success/page.tsx                  # ENR number reveal + subject list
-│   ├── track/[enr]/page.tsx              # Status tracking page
-│   ├── admin/page.tsx                    # Admin dashboard: list + confirm/reject
+│   ├── layout.tsx                        # Root layout: RoleProvider; no visual shell
+│   ├── (student)/                       # Route group; URL paths stay unchanged
+│   │   ├── layout.tsx                    # Student header, nav, and content wrapper
+│   │   ├── page.tsx                      # Landing page + hero + CTAs (/)
+│   │   ├── chat/page.tsx                 # AI chat interface (/chat)
+│   │   ├── enroll/page.tsx               # Enrollment form (/enroll)
+│   │   ├── success/page.tsx              # ENR number reveal (/success)
+│   │   └── track/[enr]/page.tsx          # Status tracking (/track/[enr])
+│   ├── admin/
+│   │   ├── layout.tsx                    # PUPILA admin-only shell
+│   │   └── page.tsx                      # Existing enrollment list + confirm/reject
 │   └── api/
 │       ├── chat/route.ts                 # POST /api/chat
 │       ├── subjects/route.ts             # GET /api/subjects
@@ -677,6 +683,7 @@ campusassist-ai/
 │   ├── EnrollmentNumberReveal.tsx        # ENR number on success page
 │   ├── StatusTimeline.tsx                # Status steps on tracking page
 │   ├── AdminTable.tsx                    # Enrollments table + confirm/reject
+│   ├── PupilaAdminShell.tsx              # Admin header, sidebar, and AI panel
 │   └── RoleToggle.tsx                    # Student ↔ Staff context toggle
 ├── lib/
 │   ├── ai.ts                             # getAIResponse(message): AIResponse
@@ -701,7 +708,21 @@ campusassist-ai/
 | `EnrollmentNumberReveal` | `/success` | URL param `?enr=` | Animates on mount |
 | `StatusTimeline` | `/track/[enr]` | `GET /api/enrollments/[enr]` | Highlights current step; handles confirmed/rejected branch |
 | `AdminTable` | `/admin` | `GET /api/enrollments` | Confirm/Reject buttons; expandable row shows subjects |
-| `RoleToggle` | `layout.tsx` | React context | Sets `x-demo-role: staff` on admin API calls |
+| `PupilaAdminShell` | `/admin` layout | `ChatWindow` for AI panel | Admin-only chrome; Dashboard and Requests links work |
+| `RoleToggle` | Student and admin headers | React context | Changes demo role and navigates between `/` and `/admin` |
+
+### Admin rebuild phases (separate from MVP tiers above)
+
+| Phase | Scope | Current checkpoint |
+|---|---|---|
+| 0 | Safe branch/base and prototype inventory | Safe base verified; no separate Phase 0 artifact verified |
+| 1 | Isolated admin shell, truthful navigation, view switch, tests | Implemented |
+| 2 | Data-backed PUPILA dashboard and separate Requests view | Implemented |
+| 3 | Review-action UX and state-machine checks | Implemented |
+| 4 | Reports or export only where supported by real data | Not started; no `/admin/reports` page or schedule backend exists |
+| 5 | Integration, regression, and demo polish | Not started |
+
+Do not copy mock records, metrics, export behavior, or AI verification from the prototype into claims about implemented functionality. Coordinate shared layout and `RoleToggle` changes with teammates working on student and login pages.
 
 ---
 
@@ -781,7 +802,7 @@ campusassist-ai/
 - [ ] Error state shown when API returns error
 - [ ] Empty state shown on admin table when no enrollments
 - [ ] Form inline validation errors visible
-- [ ] ENR number with leading zeros renders correctly (ENR-2025-0001 not ENR-2025-1)
+- [ ] ENR number with leading zeros and student-type suffix renders correctly (e.g. `ENR-00001-MN-0`)
 - [ ] Very long student name does not break admin table layout
 
 ### Tier 3 — Animations

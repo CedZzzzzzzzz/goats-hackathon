@@ -114,7 +114,7 @@ export function AuthCard() {
         }}
         className={`auth-pane-in${!isSignIn ? " auth-pane-hidden" : ""}`}
       >
-        <SignInForm onGoSignUp={goSignUp} />
+        <SignInForm />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--muted)", marginTop: "auto" }}>
           <span>
             New here?{" "}
