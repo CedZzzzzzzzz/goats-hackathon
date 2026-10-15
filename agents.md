@@ -1,17 +1,17 @@
 # CampusAssist AI — Agent & Technical Reference
 
 > This file is the working reference for Bob (AI coding assistant) and both developers during the hackathon build.
-> Read `plan.md` for the full product scope, timeline, and demo script.
+> Read `enrollment-plan.md` for the full product scope, timeline, and demo script.
 > This file covers: project bootstrap, tech stack, folder layout, all endpoints with contracts, component map, and coding conventions.
 
 ---
 
 ## Project Overview
 
-**CampusAssist AI** is a student services demo tool for a single campus workflow — requesting an **Enrollment Verification Letter**. A student chats with an AI assistant that explains the process (from a hand-written knowledge base), sees a requirements checklist, submits a form, receives a reference number, and tracks the status. A staff member (demo role, no real auth) updates statuses in an admin dashboard.
+**CampusAssist AI** is a student enrollment portal for a single college department — BSIT. Students identify as regular or irregular, enroll for the semester (regular students are auto-assigned their curriculum; irregular students pick from a subject pool), and track their enrollment status. Staff confirm or reject pending irregular enrollments via an admin dashboard. An AI assistant answers enrollment process questions from a curated knowledge base.
 
 **Key design constraints:**
-- AI answers only from approved content in `lib/kb.json` — no external LLM API, no vector DB
+- AI chatbot answers only from approved content in `lib/kb.json` — no external LLM API, no vector DB
 - Every AI answer cites its source; unknown questions get a safe "I don't know" response
 - No real authentication — a demo role-switch toggle switches between student and staff views
 - All data is fake; this is not a production system
@@ -29,7 +29,7 @@
 | Components | shadcn/ui | Copy-paste components into `components/ui/` |
 | Database | Supabase (Postgres) | Managed cloud, JS client `@supabase/supabase-js` |
 | Validation | Zod | All schemas live in `lib/schemas.ts` |
-| Animations | React Bits | CDN copy-paste or `npm` package — 4 spots only |
+| Animations | React Bits | CDN copy-paste or `pnpm` package — 4 spots only |
 | Package manager | **pnpm** | `pnpm install`, `pnpm dev`, `pnpm build` |
 | Deployment | Vercel | Connect repo, set env vars, deploy |
 
@@ -64,7 +64,7 @@ pnpm lint         # run ESLint across the project
 
 ```bash
 pnpm test                               # run all tests
-pnpm test --watch                       # watch mode
+pnpm test:watch                         # watch mode
 pnpm --filter @bobhackathon/web test    # run tests for the web package only (monorepo)
 ```
 
@@ -91,11 +91,12 @@ main                        # stable, always deployable
 ```bash
 # create and switch to a feature branch
 git checkout -b feat/chat-interface
-git checkout -b feat/submit-form
+git checkout -b feat/enroll-form
+git checkout -b feat/subject-picker
 git checkout -b feat/status-tracking
 git checkout -b feat/admin-dashboard
 git checkout -b feat/react-bits-animations
-git checkout -b fix/ref-number-padding
+git checkout -b fix/enr-number-padding
 ```
 
 Merge back to `main` via a PR (or a direct merge if working fast during the hackathon). Keep branches short-lived — one branch per feature, merged when it works.
@@ -112,7 +113,7 @@ Format: `type(scope): short description`
 | `test` | Adding or updating test files only |
 | `refactor` | Code change that is not a feature or fix |
 | `style` | Formatting, Tailwind class changes — no logic change |
-| `docs` | `plan.md`, `agents.md`, `README.md` updates |
+| `docs` | `enrollment-plan.md`, `agents.md`, `README.md` updates |
 
 **Scope** is the part of the app being changed. Keep it short.
 
@@ -120,15 +121,16 @@ Format: `type(scope): short description`
 # features
 git commit -m "feat(chat): add ChatWindow component with message list"
 git commit -m "feat(api): add POST /api/chat route with KB matcher"
-git commit -m "feat(submit): add submission form with Zod validation"
-git commit -m "feat(tracking): add status timeline page"
-git commit -m "feat(admin): add requests table with status dropdown"
-git commit -m "feat(animations): add React Bits hero text and checklist stagger"
+git commit -m "feat(enroll): add enrollment form with student type selector"
+git commit -m "feat(subjects): add GET /api/subjects and SubjectPicker component"
+git commit -m "feat(tracking): add status timeline page /track/[enr]"
+git commit -m "feat(admin): add enrollments table with confirm/reject actions"
+git commit -m "feat(animations): add React Bits hero text and subject list stagger"
 
 # fixes
-git commit -m "fix(api): return 404 when ref number not found"
-git commit -m "fix(form): require email field when delivery is email"
-git commit -m "fix(ref): zero-pad reference number to 4 digits"
+git commit -m "fix(api): return 404 when enr number not found"
+git commit -m "fix(form): require subject selection for irregular students"
+git commit -m "fix(enr): zero-pad enrollment number to 4 digits"
 
 # tests
 git commit -m "test(ai): add unit tests for getAIResponse matcher"
@@ -137,7 +139,7 @@ git commit -m "test(schemas): add Zod schema validation tests"
 # config / chores
 git commit -m "chore(deps): add vitest and testing-library"
 git commit -m "chore(db): add Supabase schema and seed SQL"
-git commit -m "docs(agents): add data access rules and test scripts"
+git commit -m "docs(agents): update endpoint contracts for enrollment domain"
 ```
 
 #### Commit cadence
@@ -168,66 +170,71 @@ Never commit `.env.local`. It is already in `.gitignore` by default.
 ```
 campusassist-ai/
 │
-├── app/                            # Next.js App Router — all pages and API routes
-│   ├── layout.tsx                  # Root layout (font, global nav header)
-│   ├── page.tsx                    # Landing page — hero + "Get Started" CTA
+├── app/                                    # Next.js App Router — all pages and API routes
+│   ├── layout.tsx                          # Root layout: header + RoleToggle + nav
+│   ├── page.tsx                            # Landing page — hero + "Start Enrollment" CTA
 │   ├── chat/
-│   │   └── page.tsx                # Chat interface — student asks questions
-│   ├── submit/
-│   │   └── page.tsx                # Submission form
+│   │   └── page.tsx                        # AI chat interface
+│   ├── enroll/
+│   │   └── page.tsx                        # Enrollment form (student info + type + subject picker)
 │   ├── success/
-│   │   └── page.tsx                # Reference number reveal after submission
+│   │   └── page.tsx                        # ENR number reveal + subject list
 │   ├── track/
-│   │   └── [ref]/
-│   │       └── page.tsx            # Status tracking by reference number
+│   │   └── [enr]/
+│   │       └── page.tsx                    # Status tracking by enrollment number
 │   ├── admin/
-│   │   └── page.tsx                # Admin dashboard — list + update requests
+│   │   └── page.tsx                        # Admin dashboard — list + confirm/reject
 │   └── api/
 │       ├── chat/
-│       │   └── route.ts            # POST /api/chat
-│       └── requests/
-│           ├── route.ts            # POST /api/requests · GET /api/requests
-│           └── [ref]/
-│               └── route.ts        # GET /api/requests/[ref] · PATCH /api/requests/[ref]
+│       │   └── route.ts                    # POST /api/chat
+│       ├── subjects/
+│       │   └── route.ts                    # GET /api/subjects
+│       └── enrollments/
+│           ├── route.ts                    # POST /api/enrollments · GET /api/enrollments
+│           └── [enr]/
+│               └── route.ts               # GET /api/enrollments/[enr] · PATCH /api/enrollments/[enr]
 │
 ├── components/
-│   ├── ui/                         # shadcn/ui generated components (Button, Input, etc.)
-│   ├── ChatWindow.tsx              # Chat message list + input bar
-│   ├── ChecklistCard.tsx           # Renders AI checklist items (React Bits stagger)
-│   ├── RefNumberReveal.tsx         # Animated reference number on success page
-│   ├── StatusTimeline.tsx          # Status step timeline on tracking page
-│   ├── AdminTable.tsx              # Requests table with inline status update
-│   └── RoleToggle.tsx              # Header toggle: Student view ↔ Staff view
+│   ├── ui/                                 # shadcn/ui generated components
+│   ├── ChatWindow.tsx                      # Chat message list + input bar
+│   ├── ChecklistCard.tsx                   # Renders AI checklist responses
+│   ├── SubjectPicker.tsx                   # Multi-select subject list (irregular students only)
+│   ├── EnrollmentNumberReveal.tsx          # Animated ENR number on success page
+│   ├── StatusTimeline.tsx                  # Status step timeline on tracking page
+│   ├── AdminTable.tsx                      # Enrollments table with confirm/reject actions
+│   └── RoleToggle.tsx                      # Header toggle: Student view ↔ Staff view
 │
 ├── lib/
-│   ├── kb.json                     # Hand-written knowledge base (see §AI below)
-│   ├── ai.ts                       # Keyword matcher — getAIResponse(message)
-│   ├── supabase.ts                 # Supabase client singleton
-│   ├── schemas.ts                  # All Zod schemas (shared by API routes + forms)
-│   └── utils.ts                    # generateRefNumber(), cn() helper, etc.
+│   ├── kb.json                             # Hand-written enrollment knowledge base
+│   ├── ai.ts                               # Keyword matcher — getAIResponse(message)
+│   ├── supabase.ts                         # Supabase client singleton
+│   ├── schemas.ts                          # All Zod schemas (shared by API routes + forms)
+│   └── utils.ts                            # generateEnrNumber(), cn() helper, etc.
 │
 ├── types/
-│   └── index.ts                    # Shared TypeScript types (Request, AIResponse, Status)
+│   └── index.ts                            # Shared TypeScript types
 │
 ├── tests/
-│   ├── setup.ts                    # jest-dom global setup
+│   ├── setup.ts                            # jest-dom global setup
 │   ├── lib/
-│   │   ├── ai.test.ts              # getAIResponse() unit tests
-│   │   ├── schemas.test.ts         # Zod schema unit tests
-│   │   └── utils.test.ts           # generateRefNumber() unit tests
+│   │   ├── ai.test.ts                      # getAIResponse() unit tests
+│   │   ├── schemas.test.ts                 # Zod schema unit tests
+│   │   └── utils.test.ts                   # generateEnrNumber() unit tests
 │   ├── api/
-│   │   ├── chat.test.ts            # POST /api/chat
-│   │   ├── requests.test.ts        # POST + GET /api/requests
-│   │   └── requests-ref.test.ts    # GET + PATCH /api/requests/[ref]
+│   │   ├── chat.test.ts                    # POST /api/chat
+│   │   ├── subjects.test.ts                # GET /api/subjects
+│   │   ├── enrollments.test.ts             # POST /api/enrollments · GET /api/enrollments
+│   │   └── enrollments-enr.test.ts         # GET /api/enrollments/[enr] · PATCH /api/enrollments/[enr]
 │   └── components/
 │       ├── ChatWindow.test.tsx
 │       ├── ChecklistCard.test.tsx
+│       ├── SubjectPicker.test.tsx
 │       └── StatusTimeline.test.tsx
 │
-├── vitest.config.ts                # Vitest configuration
-├── .env.local                      # Secret env vars — never commit
-├── agents.md                       # ← this file
-└── plan.md                         # Product plan, timeline, team split
+├── vitest.config.ts                        # Vitest configuration
+├── .env.local                              # Secret env vars — never commit
+├── agents.md                               # ← this file
+└── enrollment-plan.md                      # Product plan, timeline, demo script
 ```
 
 ---
@@ -235,28 +242,38 @@ campusassist-ai/
 ## Shared Types (`types/index.ts`)
 
 ```ts
-export type Status = "submitted" | "under_review" | "ready" | "complete" | "rejected"
+export type StudentType      = "regular" | "irregular"
+export type EnrollmentStatus = "pending" | "confirmed" | "rejected"
 
-export type DeliveryMethod = "pickup" | "email"
+export interface Subject {
+  code:       string
+  name:       string
+  units:      number
+  year_level: string
+  program:    string
+}
 
-export interface Request {
-  id: number
-  ref_number: string
-  full_name: string
-  student_id: string
-  purpose: string
-  delivery: DeliveryMethod
-  email: string | null
-  status: Status
-  created_at: string
-  updated_at: string
+export interface Enrollment {
+  id:            number
+  enr_number:    string
+  full_name:     string
+  student_id:    string
+  student_type:  StudentType
+  year_level:    string
+  program:       string
+  semester:      string
+  academic_year: string
+  status:        EnrollmentStatus
+  subjects:      Subject[]
+  created_at:    string
+  updated_at:    string
 }
 
 export interface AIResponse {
   answer: string
-  source: string | null        // shown as "Source: {source}"
-  type: "info" | "checklist" | "unknown"
-  items: string[] | null       // only populated when type === "checklist"
+  source: string | null       // shown as "Source: {source}"
+  type:   "info" | "checklist" | "unknown"
+  items:  string[] | null     // only populated when type === "checklist"
 }
 ```
 
@@ -264,21 +281,69 @@ export interface AIResponse {
 
 ## Database Schema (Supabase)
 
-### Create table
+### Table: `enrollments`
 
 ```sql
-create table requests (
-  id          bigserial primary key,
-  ref_number  text not null unique,
-  full_name   text not null,
-  student_id  text not null,
-  purpose     text not null,
-  delivery    text not null check (delivery in ('pickup', 'email')),
-  email       text,
-  status      text not null default 'submitted'
-              check (status in ('submitted','under_review','ready','complete','rejected')),
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+create table enrollments (
+  id              bigserial primary key,
+  enr_number      text not null unique,              -- ENR-2025-0042
+  full_name       text not null,
+  student_id      text not null,
+  student_type    text not null check (student_type in ('regular', 'irregular')),
+  year_level      text not null,                    -- '1st Year', '2nd Year', etc.
+  program         text not null,                    -- e.g. 'BSIT'
+  semester        text not null default '1st Semester',
+  academic_year   text not null default '2025-2026',
+  status          text not null default 'pending'
+                  check (status in ('pending', 'confirmed', 'rejected')),
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now()
+);
+```
+
+> Regular enrollments are inserted with `status = 'confirmed'`. Irregular enrollments are inserted with `status = 'pending'`.
+
+### Table: `enrollment_subjects`
+
+Junction table linking an enrollment to the subjects it contains.
+
+```sql
+create table enrollment_subjects (
+  id              bigserial primary key,
+  enrollment_id   bigint not null references enrollments(id) on delete cascade,
+  subject_code    text not null,
+  subject_name    text not null,
+  units           int not null
+);
+```
+
+### Table: `subjects`
+
+Available subject pool for irregular student selection.
+
+```sql
+create table subjects (
+  id           bigserial primary key,
+  code         text not null unique,       -- e.g. 'IT101'
+  name         text not null,
+  units        int not null,
+  year_level   text not null,              -- advisory only, not enforced
+  program      text not null default 'BSIT'
+);
+```
+
+### Table: `curricula`
+
+Prescribed subject load per year level for regular students.
+
+```sql
+create table curricula (
+  id           bigserial primary key,
+  year_level   text not null,
+  program      text not null,
+  subject_code text not null,
+  subject_name text not null,
+  units        int not null
 );
 ```
 
@@ -294,27 +359,60 @@ end;
 $$ language plpgsql;
 
 create trigger set_updated_at
-before update on requests
+before update on enrollments
 for each row execute procedure update_updated_at();
 ```
 
 ### Seed data
 
+**Subjects**
 ```sql
-insert into requests (ref_number, full_name, student_id, purpose, delivery, email, status)
-values
-  ('REF-2025-0001', 'Alex Rivera',   'S10001', 'Bank account opening',     'email',  'alex@demo.edu',   'complete'),
-  ('REF-2025-0002', 'Jordan Lee',    'S10002', 'Scholarship application',  'pickup',  null,             'ready'),
-  ('REF-2025-0003', 'Morgan Patel',  'S10003', 'Apartment rental',         'email',  'morgan@demo.edu', 'under_review'),
-  ('REF-2025-0004', 'Casey Nguyen',  'S10004', 'Employment verification',  'pickup',  null,             'submitted');
+insert into subjects (code, name, units, year_level, program) values
+  ('IT101', 'Introduction to Computing',         3, '1st Year', 'BSIT'),
+  ('IT102', 'Computer Programming 1',            3, '1st Year', 'BSIT'),
+  ('IT103', 'Mathematics in the Modern World',   3, '1st Year', 'BSIT'),
+  ('IT201', 'Data Structures and Algorithms',    3, '2nd Year', 'BSIT'),
+  ('IT202', 'Object-Oriented Programming',       3, '2nd Year', 'BSIT'),
+  ('IT203', 'Database Management Systems',       3, '2nd Year', 'BSIT'),
+  ('IT301', 'Web Systems and Technologies',      3, '3rd Year', 'BSIT'),
+  ('IT302', 'Networks and Communications',       3, '3rd Year', 'BSIT'),
+  ('IT401', 'Capstone Project 1',                3, '4th Year', 'BSIT'),
+  ('IT402', 'Software Engineering',              3, '4th Year', 'BSIT');
+```
+
+**Curricula**
+```sql
+insert into curricula (year_level, program, subject_code, subject_name, units) values
+  ('1st Year', 'BSIT', 'IT101', 'Introduction to Computing',       3),
+  ('1st Year', 'BSIT', 'IT102', 'Computer Programming 1',          3),
+  ('1st Year', 'BSIT', 'IT103', 'Mathematics in the Modern World', 3),
+  ('2nd Year', 'BSIT', 'IT201', 'Data Structures and Algorithms',  3),
+  ('2nd Year', 'BSIT', 'IT202', 'Object-Oriented Programming',     3),
+  ('2nd Year', 'BSIT', 'IT203', 'Database Management Systems',     3),
+  ('3rd Year', 'BSIT', 'IT301', 'Web Systems and Technologies',    3),
+  ('3rd Year', 'BSIT', 'IT302', 'Networks and Communications',     3),
+  ('4th Year', 'BSIT', 'IT401', 'Capstone Project 1',              3),
+  ('4th Year', 'BSIT', 'IT402', 'Software Engineering',            3);
+```
+
+**Enrollments (demo rows)**
+```sql
+insert into enrollments (enr_number, full_name, student_id, student_type, year_level, program, status) values
+  ('ENR-2025-0001', 'Alex Rivera',  'S10001', 'regular',   '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-2025-0002', 'Jordan Lee',   'S10002', 'irregular', '3rd Year', 'BSIT', 'pending'),
+  ('ENR-2025-0003', 'Morgan Patel', 'S10003', 'irregular', '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-2025-0004', 'Casey Nguyen', 'S10004', 'regular',   '1st Year', 'BSIT', 'confirmed');
 ```
 
 ### RLS (Row Level Security)
 
-For the demo, disable RLS on the `requests` table:
+For the demo, disable RLS on all tables:
 
 ```sql
-alter table requests disable row level security;
+alter table enrollments          disable row level security;
+alter table enrollment_subjects  disable row level security;
+alter table subjects             disable row level security;
+alter table curricula            disable row level security;
 ```
 
 ---
@@ -349,27 +447,29 @@ export const AIResponseSchema = z.object({
   items:  z.array(z.string()).nullable()
 })
 
-// ── Submit request ────────────────────────────────────────────────────
-export const SubmitRequestSchema = z.object({
-  full_name:  z.string().min(2).max(100),
-  student_id: z.string().min(3).max(20),
-  purpose:    z.string().min(5).max(200),
-  delivery:   z.enum(["pickup", "email"]),
-  email:      z.string().email().optional()
+// ── Enrollment submission ──────────────────────────────────────────────
+export const EnrollmentSchema = z.object({
+  full_name:     z.string().min(2).max(100),
+  student_id:    z.string().min(3).max(20),
+  student_type:  z.enum(["regular", "irregular"]),
+  year_level:    z.enum(["1st Year", "2nd Year", "3rd Year", "4th Year"]),
+  program:       z.string().min(2).max(50),
+  subject_codes: z.array(z.string()).optional()   // required only for irregular
 }).refine(
-  (data) => data.delivery !== "email" || !!data.email,
-  { message: "Email address is required for email delivery", path: ["email"] }
+  data => data.student_type !== "irregular" || (data.subject_codes && data.subject_codes.length > 0),
+  { message: "Irregular students must select at least one subject", path: ["subject_codes"] }
 )
 
-// ── Update status (admin) ─────────────────────────────────────────────
-export const UpdateStatusSchema = z.object({
-  status: z.enum(["submitted", "under_review", "ready", "complete", "rejected"])
+// ── Admin status update ────────────────────────────────────────────────
+export const UpdateEnrollmentSchema = z.object({
+  status: z.enum(["confirmed", "rejected"])
 })
 
-// ── Inferred types ────────────────────────────────────────────────────
-export type ChatRequest     = z.infer<typeof ChatRequestSchema>
-export type SubmitRequest   = z.infer<typeof SubmitRequestSchema>
-export type UpdateStatus    = z.infer<typeof UpdateStatusSchema>
+// ── Inferred types ─────────────────────────────────────────────────────
+export type ChatRequest        = z.infer<typeof ChatRequestSchema>
+export type AIResponse         = z.infer<typeof AIResponseSchema>
+export type EnrollmentRequest  = z.infer<typeof EnrollmentSchema>
+export type UpdateEnrollment   = z.infer<typeof UpdateEnrollmentSchema>
 ```
 
 ---
@@ -387,21 +487,16 @@ Error responses always follow `{ error: string }`.
 
 **Request body**
 ```json
-{ "message": "What do I need to bring?" }
+{ "message": "What subjects can I take as an irregular student?" }
 ```
 
-**Response `200`**
+**Response `200` — matched**
 ```json
 {
-  "answer": "You will need: (1) Your Student ID card ...",
-  "source": "Requirements",
+  "answer": "Irregular students may select from the available subject pool...",
+  "source": "Irregular Student Enrollment",
   "type": "checklist",
-  "items": [
-    "Valid Student ID card",
-    "Completed request form",
-    "Stated purpose of letter",
-    "$5 processing fee (payable at cashier)"
-  ]
+  "items": ["IT101 — Introduction to Computing", "IT201 — Data Structures", "..."]
 }
 ```
 
@@ -424,96 +519,139 @@ Error responses always follow `{ error: string }`.
 
 ---
 
-### `POST /api/requests`
+### `GET /api/subjects`
 
-**Purpose:** Submit a new enrollment verification letter request. Generates and returns a reference number.
+**Purpose:** Return the full available subject pool. Used to populate the `SubjectPicker` for irregular students.
+
+**Response `200`**
+```json
+[
+  { "code": "IT101", "name": "Introduction to Computing", "units": 3, "year_level": "1st Year", "program": "BSIT" },
+  { "code": "IT201", "name": "Data Structures and Algorithms", "units": 3, "year_level": "2nd Year", "program": "BSIT" }
+]
+```
+
+**Auth:** None
+
+---
+
+### `POST /api/enrollments`
+
+**Purpose:** Submit a new enrollment. Regular students are auto-confirmed with the prescribed curriculum. Irregular students are set to pending with their chosen subjects.
 
 **Request body**
 ```json
 {
-  "full_name":  "Sam Torres",
-  "student_id": "S10099",
-  "purpose":    "Landlord rental application",
-  "delivery":   "email",
-  "email":      "sam@demo.edu"
+  "full_name":     "Sam Torres",
+  "student_id":   "S10099",
+  "student_type": "irregular",
+  "year_level":   "2nd Year",
+  "program":      "BSIT",
+  "subject_codes": ["IT101", "IT203", "IT301"]
 }
 ```
 
-**Response `201`**
+**Response `201` — irregular student**
 ```json
 {
-  "ref_number": "REF-2025-0005",
-  "status": "submitted"
+  "enr_number": "ENR-2025-0005",
+  "status":     "pending",
+  "subjects": [
+    { "code": "IT101", "name": "Introduction to Computing", "units": 3 },
+    { "code": "IT203", "name": "Database Management Systems", "units": 3 },
+    { "code": "IT301", "name": "Web Systems and Technologies", "units": 3 }
+  ]
+}
+```
+
+**Response `201` — regular student** (no `subject_codes` in request)
+```json
+{
+  "enr_number": "ENR-2025-0006",
+  "status":     "confirmed",
+  "subjects": [
+    { "code": "IT201", "name": "Data Structures and Algorithms", "units": 3 },
+    { "code": "IT202", "name": "Object-Oriented Programming", "units": 3 },
+    { "code": "IT203", "name": "Database Management Systems", "units": 3 }
+  ]
 }
 ```
 
 **Response `400`** — validation error
 ```json
-{ "error": "Email address is required for email delivery" }
+{ "error": "Irregular students must select at least one subject" }
 ```
 
 **Response `500`** — database error
 ```json
-{ "error": "Failed to create request" }
+{ "error": "Failed to create enrollment" }
 ```
 
 **Auth:** None
 
-**Ref number generation logic** (in `lib/utils.ts`):
+**ENR number generation logic** (in `lib/utils.ts`):
 ```ts
-export function generateRefNumber(id: number): string {
+export function generateEnrNumber(id: number): string {
   const year = new Date().getFullYear()
   const seq  = String(id).padStart(4, "0")
-  return `REF-${year}-${seq}`
+  return `ENR-${year}-${seq}`
 }
 ```
-The row is inserted first (Supabase returns the `id`), then `ref_number` is updated in the same transaction using the returned `id`.
+Insert the row first (Supabase returns the `id`), then update `enr_number` using the returned `id`.
 
 ---
 
-### `GET /api/requests/[ref]`
+### `GET /api/enrollments/[enr]`
 
-**Purpose:** Fetch the status and details of a single request by reference number.
+**Purpose:** Fetch the status and full detail of a single enrollment by ENR number. Used by the student tracking page.
 
-**URL param:** `ref` — e.g. `REF-2025-0005`
+**URL param:** `enr` — e.g. `ENR-2025-0005`
 
 **Response `200`**
 ```json
 {
-  "ref_number":  "REF-2025-0005",
-  "full_name":   "Sam Torres",
-  "status":      "under_review",
-  "delivery":    "email",
-  "created_at":  "2025-07-01T10:23:00Z",
-  "updated_at":  "2025-07-01T14:05:00Z"
+  "enr_number":    "ENR-2025-0005",
+  "full_name":     "Sam Torres",
+  "student_type":  "irregular",
+  "year_level":    "2nd Year",
+  "program":       "BSIT",
+  "semester":      "1st Semester",
+  "academic_year": "2025-2026",
+  "status":        "pending",
+  "subjects": [
+    { "code": "IT101", "name": "Introduction to Computing", "units": 3 },
+    { "code": "IT203", "name": "Database Management Systems", "units": 3 }
+  ],
+  "created_at": "2025-07-01T10:23:00Z",
+  "updated_at": "2025-07-01T10:23:00Z"
 }
 ```
 
 **Response `404`**
 ```json
-{ "error": "Request not found" }
+{ "error": "Enrollment not found" }
 ```
 
 **Auth:** None
 
 ---
 
-### `GET /api/requests`
+### `GET /api/enrollments`
 
-**Purpose:** List all requests for the admin dashboard.
+**Purpose:** List all enrollments for the admin dashboard.
 
 **Response `200`**
 ```json
 [
   {
-    "ref_number":  "REF-2025-0001",
-    "full_name":   "Alex Rivera",
+    "enr_number":   "ENR-2025-0001",
+    "full_name":    "Alex Rivera",
     "student_id":  "S10001",
-    "purpose":     "Bank account opening",
-    "delivery":    "email",
-    "status":      "complete",
-    "created_at":  "2025-07-01T09:00:00Z",
-    "updated_at":  "2025-07-01T12:00:00Z"
+    "student_type": "regular",
+    "year_level":   "2nd Year",
+    "program":      "BSIT",
+    "status":       "confirmed",
+    "created_at":   "2025-07-01T09:00:00Z"
   }
 ]
 ```
@@ -527,22 +665,22 @@ The row is inserted first (Supabase returns the `id`), then `ref_number` is upda
 
 ---
 
-### `PATCH /api/requests/[ref]`
+### `PATCH /api/enrollments/[enr]`
 
-**Purpose:** Update the status of a request (admin only).
+**Purpose:** Confirm or reject a pending enrollment (admin only).
 
-**URL param:** `ref` — e.g. `REF-2025-0003`
+**URL param:** `enr` — e.g. `ENR-2025-0002`
 
 **Request body**
 ```json
-{ "status": "ready" }
+{ "status": "confirmed" }
 ```
 
 **Response `200`**
 ```json
 {
-  "ref_number": "REF-2025-0003",
-  "status":     "ready",
+  "enr_number": "ENR-2025-0002",
+  "status":     "confirmed",
   "updated_at": "2025-07-01T15:30:00Z"
 }
 ```
@@ -559,7 +697,7 @@ The row is inserted first (Supabase returns the `id`), then `ref_number` is upda
 
 **Response `404`**
 ```json
-{ "error": "Request not found" }
+{ "error": "Enrollment not found" }
 ```
 
 **Auth:** `x-demo-role: staff` header required
@@ -594,17 +732,18 @@ Each entry has: `id`, `title`, `keywords[]`, `content`, `type`, and optionally `
 
 The matcher in `lib/ai.ts` iterates entries and returns the first whose `keywords` array contains a word found in the lowercased user message. If no match, returns the "unknown" fallback.
 
-**Suggested entries to write:**
+**Entries to write:**
 
-| id | title | Covers |
-|---|---|---|
-| `process_overview` | Process Overview | how, steps, process, request, enrollment verification |
-| `requirements` | Requirements | need, bring, require, document, checklist |
-| `turnaround` | Turnaround Time | how long, when, days, wait, urgent |
-| `pickup` | Pickup & Delivery | pickup, collect, email, deliver, send, receive |
-| `status` | Tracking Your Request | track, status, check, reference, number |
-| `fee` | Fees | fee, cost, pay, price, charge |
-| `office_hours` | Office Hours & Location | hours, open, office, location, where, building |
+| id | title | type | Keywords (sample) |
+|---|---|---|---|
+| `enrollment_overview` | Enrollment Overview | info | how, start, enroll, process, steps |
+| `regular_student` | Regular Student Enrollment | info | regular, prescribed, curriculum, auto, assigned |
+| `irregular_student` | Irregular Student Enrollment | info | irregular, back subject, custom, pick, choose |
+| `subject_selection` | Choosing Subjects | checklist | subjects, available, pick, units, load, how many |
+| `approval_process` | Approval Process | info | approve, pending, confirm, wait, review, staff |
+| `enrollment_status` | Tracking Your Enrollment | info | track, status, check, number, ENR, where |
+| `schedule` | Enrollment Schedule | info | when, open, deadline, period, dates, schedule |
+| `requirements` | Requirements | checklist | need, bring, require, document, ID, what |
 
 > Add more entries any time during the build — the matcher picks them up automatically.
 
@@ -616,10 +755,11 @@ The matcher in `lib/ai.ts` iterates entries and returns the first whose `keyword
 |---|---|---|---|
 | `ChatWindow` | `/chat` | `POST /api/chat` | Manages local message array in state |
 | `ChecklistCard` | `/chat` | AI response `items[]` | Renders only when `type === "checklist"` |
-| `RefNumberReveal` | `/success` | URL search param `?ref=` | Animates on mount |
-| `StatusTimeline` | `/track/[ref]` | `GET /api/requests/[ref]` | Shows all 4 statuses; highlights current |
-| `AdminTable` | `/admin` | `GET /api/requests` | `PATCH /api/requests/[ref]` on dropdown change |
-| `RoleToggle` | `layout.tsx` header | Context state | Switches between student and staff views |
+| `SubjectPicker` | `/enroll` | `GET /api/subjects` | Shown only when `student_type === "irregular"` |
+| `EnrollmentNumberReveal` | `/success` | URL search param `?enr=` | Animates on mount |
+| `StatusTimeline` | `/track/[enr]` | `GET /api/enrollments/[enr]` | Highlights current step; handles confirmed/rejected branch |
+| `AdminTable` | `/admin` | `GET /api/enrollments` | Confirm/Reject buttons; expandable row shows subject list |
+| `RoleToggle` | `layout.tsx` header | React context | Switches student ↔ staff view; attaches `x-demo-role: staff` on admin calls |
 
 ---
 
@@ -633,13 +773,13 @@ Install (pick one):
 pnpm add react-bits
 ```
 
-**4 animation spots — add only after core flow works end-to-end:**
+**4 animation spots — add only after core flow works end-to-end (Tier 3):**
 
 | Spot | Suggested component | Fallback if removed |
 |---|---|---|
 | Hero headline | `TextPressure` or `BlurText` | Plain `<h1>` |
-| Checklist items | Staggered `FadeContent` | Static `<ul>` |
-| Reference number reveal | `CountUp` or `GlitchText` | Static `<p>` |
+| Subject list (irregular picker) | Staggered `FadeContent` | Static `<ul>` |
+| Enrollment number reveal | `CountUp` or `GlitchText` | Static `<p>` |
 | Status timeline steps | Step-reveal with CSS transition | Static list |
 
 **Hard rules:**
@@ -666,29 +806,29 @@ These rules apply to every file in this project. Bob must follow them without ex
 
 ```ts
 // ✅ CORRECT — supabase used inside an API route handler
-// app/api/requests/route.ts
+// app/api/enrollments/route.ts
 import { supabase } from "@/lib/supabase"
 export async function GET() {
-  const { data } = await supabase.from("requests").select("*")
+  const { data } = await supabase.from("enrollments").select("*")
   // ...
 }
 
 // ❌ WRONG — supabase imported in a page component
-// app/track/[ref]/page.tsx
+// app/track/[enr]/page.tsx
 import { supabase } from "@/lib/supabase"  // never do this
 ```
 
 **2. Pages fetch data by calling their own API routes, not Supabase directly.**
 
-All data flows through the API layer. Pages call `fetch("/api/requests/[ref]")` — they do not reach into Supabase themselves.
+All data flows through the API layer. Pages call `fetch("/api/enrollments/[enr]")` — they do not reach into Supabase themselves.
 
 ```ts
 // ✅ CORRECT — page calls the API route
-const res  = await fetch(`/api/requests/${ref}`)
+const res  = await fetch(`/api/enrollments/${enr}`)
 const data = await res.json()
 
 // ❌ WRONG — page calls Supabase directly
-const { data } = await supabase.from("requests").select("*").eq("ref_number", ref)
+const { data } = await supabase.from("enrollments").select("*").eq("enr_number", enr)
 ```
 
 **3. Never import server-only modules in client components.**
@@ -704,15 +844,15 @@ Any file with `"use client"` at the top must not import `@supabase/supabase-js`,
 ### API routes
 
 ```ts
-// app/api/requests/route.ts — pattern to follow for all routes
+// app/api/enrollments/route.ts — pattern to follow for all routes
 import { NextRequest } from "next/server"
-import { SubmitRequestSchema } from "@/lib/schemas"
+import { EnrollmentSchema } from "@/lib/schemas"
 import { supabase } from "@/lib/supabase"
-import { generateRefNumber } from "@/lib/utils"
+import { generateEnrNumber } from "@/lib/utils"
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const parsed = SubmitRequestSchema.safeParse(body)
+  const parsed = EnrollmentSchema.safeParse(body)
   if (!parsed.success) {
     return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
   }
@@ -723,7 +863,7 @@ export async function POST(req: NextRequest) {
 ### Client components
 
 - Use `"use client"` only on components that need browser APIs or event handlers
-- Keep data fetching in server components where possible (page.tsx)
+- Keep data fetching in server components where possible (`page.tsx`)
 - Pass data down as props to keep client components pure and testable
 
 ### Naming
@@ -735,7 +875,7 @@ export async function POST(req: NextRequest) {
 ### Error states every page needs
 - Loading state (Skeleton or spinner)
 - Error state (short message + retry or contact info)
-- Empty state (for admin table when no requests exist)
+- Empty state (for admin table when no enrollments exist)
 
 ---
 
@@ -790,28 +930,30 @@ import "@testing-library/jest-dom"
 
 ```
 tests/
-├── setup.ts                    # global test setup (jest-dom matchers)
+├── setup.ts                        # global test setup (jest-dom matchers)
 ├── lib/
-│   ├── ai.test.ts              # unit tests for getAIResponse()
-│   ├── schemas.test.ts         # unit tests for all Zod schemas
-│   └── utils.test.ts           # unit tests for generateRefNumber()
+│   ├── ai.test.ts                  # unit tests for getAIResponse()
+│   ├── schemas.test.ts             # unit tests for all Zod schemas
+│   └── utils.test.ts               # unit tests for generateEnrNumber()
 ├── api/
-│   ├── chat.test.ts            # API route: POST /api/chat
-│   ├── requests.test.ts        # API route: POST /api/requests · GET /api/requests
-│   └── requests-ref.test.ts    # API route: GET /api/requests/[ref] · PATCH /api/requests/[ref]
+│   ├── chat.test.ts                # POST /api/chat
+│   ├── subjects.test.ts            # GET /api/subjects
+│   ├── enrollments.test.ts         # POST /api/enrollments · GET /api/enrollments
+│   └── enrollments-enr.test.ts     # GET /api/enrollments/[enr] · PATCH /api/enrollments/[enr]
 └── components/
-    ├── ChatWindow.test.tsx      # renders messages, calls /api/chat on submit
-    ├── ChecklistCard.test.tsx   # renders items, only when type === "checklist"
-    └── StatusTimeline.test.tsx  # highlights correct status step
+    ├── ChatWindow.test.tsx
+    ├── ChecklistCard.test.tsx
+    ├── SubjectPicker.test.tsx
+    └── StatusTimeline.test.tsx
 ```
 
 ### Run commands
 
 ```bash
-pnpm test                               # run all tests once
-pnpm test:watch                         # watch mode during development
-pnpm --filter @bobhackathon/web test    # run only the web package tests (monorepo)
-pnpm test -- tests/lib/ai.test.ts       # run a single test file
+pnpm test                                       # run all tests once
+pnpm test:watch                                 # watch mode during development
+pnpm --filter @bobhackathon/web test            # run web package tests only (monorepo)
+pnpm test -- tests/lib/ai.test.ts               # run a single test file
 ```
 
 ### What Bob tests for each area
@@ -826,19 +968,19 @@ Bob will write tests that cover:
 
 #### `tests/lib/schemas.test.ts` — Zod validation
 Bob will write tests that cover:
-- `SubmitRequestSchema` passes with valid pickup data (no email required)
-- `SubmitRequestSchema` passes with valid email delivery + email address
-- `SubmitRequestSchema` fails when `delivery: "email"` but no email given
-- `SubmitRequestSchema` fails on missing required fields
-- `UpdateStatusSchema` accepts all valid status values
-- `UpdateStatusSchema` rejects an invalid status string
+- `EnrollmentSchema` passes for a valid regular student (no `subject_codes`)
+- `EnrollmentSchema` passes for a valid irregular student with `subject_codes`
+- `EnrollmentSchema` fails when `student_type: "irregular"` but no `subject_codes`
+- `EnrollmentSchema` fails on missing required fields (`full_name`, `student_id`, etc.)
+- `UpdateEnrollmentSchema` accepts `"confirmed"` and `"rejected"`
+- `UpdateEnrollmentSchema` rejects any other string
 - `ChatRequestSchema` rejects an empty message string
 
 #### `tests/lib/utils.test.ts` — utilities
 Bob will write tests that cover:
-- `generateRefNumber(1)` returns `"REF-{currentYear}-0001"`
-- `generateRefNumber(42)` returns `"REF-{currentYear}-0042"`
-- `generateRefNumber(9999)` returns `"REF-{currentYear}-9999"`
+- `generateEnrNumber(1)` returns `"ENR-{currentYear}-0001"`
+- `generateEnrNumber(42)` returns `"ENR-{currentYear}-0042"`
+- `generateEnrNumber(9999)` returns `"ENR-{currentYear}-9999"`
 - IDs above 9999 are not zero-padded (they render as-is)
 
 #### `tests/api/chat.test.ts` — chat route
@@ -847,21 +989,28 @@ Bob will write tests that cover:
 - `POST /api/chat` with an unknown message returns `200` and `type: "unknown"`
 - `POST /api/chat` with an empty body returns `400`
 
-#### `tests/api/requests.test.ts` — requests list + submit
+#### `tests/api/subjects.test.ts` — subjects route
 Bob will write tests that cover:
-- `POST /api/requests` with valid data returns `201` and a `ref_number`
-- `POST /api/requests` with missing fields returns `400`
-- `POST /api/requests` with `delivery: "email"` and no email returns `400`
-- `GET /api/requests` with `x-demo-role: staff` header returns `200` array
-- `GET /api/requests` without the header returns `403`
+- `GET /api/subjects` returns `200` with an array of subjects
+- Each subject has `code`, `name`, `units`, `year_level`, `program`
 
-#### `tests/api/requests-ref.test.ts` — single request
+#### `tests/api/enrollments.test.ts` — enrollment submit + list
 Bob will write tests that cover:
-- `GET /api/requests/REF-2025-0001` returns `200` with the correct shape
-- `GET /api/requests/REF-9999-9999` returns `404`
-- `PATCH /api/requests/REF-2025-0001` with valid status + staff header returns `200`
-- `PATCH /api/requests/REF-2025-0001` without staff header returns `403`
-- `PATCH /api/requests/REF-2025-0001` with invalid status returns `400`
+- `POST /api/enrollments` (regular) returns `201`, `status: "confirmed"`, subjects from curricula
+- `POST /api/enrollments` (irregular) returns `201`, `status: "pending"`, subjects = selected
+- `POST /api/enrollments` (irregular, no subjects) returns `400` with validation message
+- `POST /api/enrollments` (missing required fields) returns `400`
+- `GET /api/enrollments` with `x-demo-role: staff` header returns `200` array
+- `GET /api/enrollments` without the header returns `403`
+
+#### `tests/api/enrollments-enr.test.ts` — single enrollment
+Bob will write tests that cover:
+- `GET /api/enrollments/ENR-2025-0001` returns `200` with correct shape including `subjects[]`
+- `GET /api/enrollments/ENR-9999-9999` returns `404`
+- `PATCH /api/enrollments/ENR-2025-0002` with `{ status: "confirmed" }` + staff header returns `200`
+- `PATCH /api/enrollments/ENR-2025-0002` with `{ status: "rejected" }` + staff header returns `200`
+- `PATCH /api/enrollments/ENR-2025-0002` without staff header returns `403`
+- `PATCH /api/enrollments/ENR-2025-0002` with invalid status returns `400`
 
 #### `tests/components/ChatWindow.test.tsx` — chat UI
 Bob will write tests that cover:
@@ -877,15 +1026,21 @@ Bob will write tests that cover:
 - Renders a list item for each entry in `items`
 - Does not render when `type !== "checklist"`
 
+#### `tests/components/SubjectPicker.test.tsx` — subject picker
+Bob will write tests that cover:
+- Renders a list of subjects passed as props
+- Checking a subject adds it to the selected set
+- Unchecking a subject removes it from the selected set
+- Calls `onChange` with the updated `subject_codes` array
+
 #### `tests/components/StatusTimeline.test.tsx` — status display
 Bob will write tests that cover:
-- All 4 status steps are rendered
-- The current status step is visually marked (has active class or aria attribute)
-- Completed steps are marked as complete
-- "rejected" status is handled without crashing
+- All status steps are rendered (`pending`, `confirmed` / `rejected`)
+- The current status step is visually marked (active class or aria attribute)
+- `confirmed` and `rejected` branches are both handled without crashing
 
 ### Bob's test-writing rules
-1. Bob writes tests in the same task as the feature, not after — "write `lib/ai.ts` and its tests together"
+1. Bob writes tests in the same task as the feature, not after
 2. Tests use the same Zod schemas from `lib/schemas.ts` — no inline shape redefinitions
 3. API tests mock Supabase calls — they do not hit the real database
 4. Component tests use `@testing-library/react` — no Enzyme, no snapshot-only tests
@@ -899,21 +1054,21 @@ Bob will write tests that cover:
 
 ### What this project is
 
-CampusAssist AI is a **Next.js + TypeScript + Supabase** web app. A student chats with an AI assistant about a campus process (enrollment verification letter request), submits a form, gets a reference number, and tracks the status. A staff member updates request statuses in an admin view. There is no real authentication.
+CampusAssist AI is a **Next.js + TypeScript + Supabase** web app for student enrollment. A student fills in an enrollment form, identifies as regular or irregular, receives an ENR number, and tracks their status. Irregular students select subjects and wait for staff approval. Staff confirm or reject pending enrollments in an admin dashboard. There is no real authentication.
 
-### What the AI assistant inside the app does
+### What the AI inside the app does
 
-The in-app AI (`lib/ai.ts`) is **not a language model**. It is a keyword matcher over `lib/kb.json`. It returns a typed `AIResponse` object. It never calls an external API. It never guesses. It always cites a source field from the KB entry. If no KB entry matches, it returns `type: "unknown"` with a safe fallback message.
+The in-app AI chatbot (`lib/ai.ts`) is **not a language model**. It is a keyword matcher over `lib/kb.json`. It returns a typed `AIResponse` object. It never calls an external API. It never guesses. It always cites a source field from the KB entry. If no KB entry matches, it returns `type: "unknown"` with a safe fallback message.
 
 ### Files to read before writing any code
 
 | File | Why |
 |---|---|
-| `plan.md` | Full product scope, user flows, status machine, team split, timeline |
+| `enrollment-plan.md` | Full product scope, user flows, status machine, team split, timeline |
 | `agents.md` | This file — stack, commands, DB schema, endpoint contracts, conventions |
 | `lib/schemas.ts` | All Zod schemas — use these, don't invent new ones |
 | `types/index.ts` | All shared TypeScript types — use these, don't redefine |
-| `lib/kb.json` | Knowledge base entries — the AI's only source of truth |
+| `lib/kb.json` | Knowledge base entries — the AI chatbot's only source of truth |
 
 ### Constraints Bob must never break
 
@@ -921,7 +1076,7 @@ The in-app AI (`lib/ai.ts`) is **not a language model**. It is a keyword matcher
 2. **Do not call external AI APIs** (OpenAI, Anthropic, etc.) — the matcher in `lib/ai.ts` is the only AI.
 3. **Do not add new Zod schemas** without adding them to `lib/schemas.ts`.
 4. **Do not add new TypeScript types** without adding them to `types/index.ts`.
-5. **Do not change the `ref_number` format** (`REF-YYYY-NNNN`) — it is shown to users and used in URLs.
+5. **Do not change the `enr_number` format** (`ENR-YYYY-NNNN`) — it is shown to users and used in URLs.
 6. **Do not change existing API response shapes** — frontend and backend are coupled to the contracts in this file.
 7. **One thing at a time.** Write one component or one route per task. Do not refactor unrelated code.
 8. **Never import `lib/supabase.ts` outside of `app/api/**/route.ts` files.** Pages and components call the API layer — they never touch Supabase directly. See Data Access Rules in Coding Conventions.
@@ -929,7 +1084,7 @@ The in-app AI (`lib/ai.ts`) is **not a language model**. It is a keyword matcher
 
 ### How to answer questions about this project
 
-- The knowledge base (`lib/kb.json`) is the source of truth for campus process questions.
+- The knowledge base (`lib/kb.json`) is the source of truth for enrollment process questions.
 - The Zod schemas in `lib/schemas.ts` are the source of truth for data shapes.
 - The endpoint contracts in the **API Endpoints** section of this file are the source of truth for request/response formats.
 - If a question is about something not covered by these files, say so — do not guess.
@@ -973,22 +1128,20 @@ Do not rewrite it. Tell me if anything is wrong with [specific concern].
 
 ---
 
-## Suggested Additions (Beyond the Original Brief)
+## Suggested Additions (Beyond the MVP)
 
-The following are low-cost improvements that could strengthen the demo without blowing the scope:
+The following are low-cost improvements ordered by value-to-effort ratio. Add only after all Tier 1 must-haves are working.
 
 | Addition | Effort | Value |
 |---|---|---|
-| **Copy-to-clipboard** on reference number | 5 min | High — improves demo UX |
-| **Status badge colours** on admin table (colour-coded chips) | 10 min | High — makes statuses scannable |
-| **"What can I ask?" prompt chips** below the chat input (3 preset questions) | 15 min | High — guides judges through the AI demo |
+| **Copy-to-clipboard** on enrollment number | 5 min | High — improves demo UX |
+| **Status badge colours** on admin table (colour-coded chips) | 10 min | High — makes statuses scannable at a glance |
+| **"What can I ask?" prompt chips** below chat input (3 preset questions) | 15 min | High — guides judges through the AI demo |
 | **Optimistic status update** in admin — update UI before API confirms | 20 min | Medium — feels polished |
-| **`/track` search form** — enter ref number on a standalone page | 20 min | Medium — more realistic student flow |
+| **`/track` standalone search form** — enter ENR number without knowing the URL | 20 min | Medium — more realistic student flow |
 | **Toast notifications** (shadcn/ui Toast) on form submit and status update | 15 min | Medium — standard UX feedback |
 | **README.md** with setup instructions and a screenshot | 20 min | High — judges read the repo |
-| **Admin request count** summary bar (X submitted, X ready) | 15 min | Low — nice-to-have dashboard polish |
-
-> Add these only after all must-haves are working. They are ordered by value-to-effort ratio.
+| **Admin enrollment count** summary bar (X pending, X confirmed) | 15 min | Low — nice-to-have dashboard polish |
 
 ---
 
@@ -997,13 +1150,13 @@ The following are low-cost improvements that could strengthen the demo without b
 Before starting the clock:
 
 - [ ] `node -v` → 20+ on both machines
-- [ ] `pnpm -v` → available on both machines
+- [ ] `pnpm -v` → available on both machines (`npm i -g pnpm` if not)
 - [ ] Supabase project created, URL and anon key copied
 - [ ] Git repo initialised, both developers have push access
 - [ ] `.env.local` template shared (not committed)
-- [ ] Both developers have read `plan.md` and `agents.md`
+- [ ] Both developers have read `enrollment-plan.md` and `agents.md`
 - [ ] Demo laptop decided — deploy to Vercel, demo from URL not localhost
-- [ ] shadcn/ui component list agreed: Button, Input, Textarea, Select, Badge, Table, Card, Skeleton, Toast
+- [ ] shadcn/ui component list agreed: Button, Input, Select, Checkbox, Badge, Table, Card, Skeleton, Toast
 
 ---
 
