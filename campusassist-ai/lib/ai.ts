@@ -22,15 +22,21 @@ const FALLBACK: AIResponse = {
 export function getAIResponse(message: string): AIResponse {
   if (!message || message.trim().length === 0) return FALLBACK
 
-  const lower = message.toLowerCase()
-  const words = lower.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, ""))
+  // Normalize: lowercase and collapse punctuation to spaces so phrases match
+  const normalized = message.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim()
 
-  // Score each entry by how many of its keywords appear in the message
+  // Match keyword as a whole-word phrase within the normalized message
+  function kwMatches(kw: string): boolean {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).test(normalized)
+  }
+
+  // Score each entry by how many of its keywords appear in the normalized message
   let bestEntry: KBEntry | null = null
   let bestScore = 0
 
   for (const entry of entries) {
-    const score = entry.keywords.filter(kw => words.some(w => w === kw)).length
+    const score = entry.keywords.filter(kwMatches).length
     if (score > bestScore) {
       bestScore = score
       bestEntry = entry

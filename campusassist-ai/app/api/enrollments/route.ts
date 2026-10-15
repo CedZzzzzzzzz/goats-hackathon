@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const { data: enrollment, error: insertError } = await supabase
     .from("enrollments")
     .insert({
-      enr_number:    "pending",
+      enr_number:    crypto.randomUUID(),
       full_name,
       student_id,
       student_type,
