@@ -276,6 +276,8 @@ Disabled in Supabase Dashboard → **Authentication → Settings → Enable emai
 
 ## CSS (`app/globals.css`)
 
+Auth styles include the Poppins font, card/input color variables, dark-mode colors, and mobile pane rules. These must remain alongside the dashboard's Inter font and crimson utilities when merging shared stylesheet changes.
+
 | Class | Purpose |
 |---|---|
 | `.dark-shell` | Dark mode shell gradient override via `@media (prefers-color-scheme: dark)` |

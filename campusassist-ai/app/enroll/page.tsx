@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { Subject } from "@/types"
 import { SubjectPicker } from "@/components/SubjectPicker"
@@ -97,92 +98,10 @@ export default function EnrollPage() {
   const inputError  = `${inputBase} border-red-400 bg-red-50 focus:border-red-400 focus:ring-2 focus:ring-red-100`
 
   return (
-<<<<<<< Updated upstream
-    <div className="max-w-xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Enrollment Form</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          {form.program} · AY 2025–2026 · 1st Semester
-        </p>
-      </div>
-
-      <form onSubmit={submit} className="space-y-5">
-        {/* Full name */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Full Name</label>
-          <input
-            className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300 ${errors.full_name ? "border-red-400" : "border-gray-200"}`}
-            placeholder="e.g. Sam Torres"
-            value={form.full_name}
-            onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-          />
-          {errors.full_name && <p className="text-red-500 text-xs">{errors.full_name}</p>}
-        </div>
-
-        {/* Student ID */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Student ID</label>
-          <input
-            className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300 ${errors.student_id ? "border-red-400" : "border-gray-200"}`}
-            placeholder="e.g. S10099"
-            value={form.student_id}
-            onChange={e => setForm(f => ({ ...f, student_id: e.target.value }))}
-          />
-          {errors.student_id && <p className="text-red-500 text-xs">{errors.student_id}</p>}
-        </div>
-
-        {/* Year level */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Year Level</label>
-          <select
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300"
-            value={form.year_level}
-            onChange={e => setForm(f => ({ ...f, year_level: e.target.value as YearLevel }))}
-          >
-            {YEAR_LEVELS.map(y => <option key={y}>{y}</option>)}
-          </select>
-        </div>
-
-        {/* Program */}
-        <div className="space-y-1">
-          <label className="text-sm font-medium text-gray-700">Program</label>
-          <select
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300"
-            value={form.program}
-            onChange={e => setForm(f => ({ ...f, program: e.target.value as Program }))}
-          >
-            {PROGRAMS.map(p => <option key={p}>{p}</option>)}
-          </select>
-        </div>
-
-        {/* Student type */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Student Type</label>
-          <div className="grid grid-cols-2 gap-3">
-            {(["regular", "irregular"] as StudentType[]).map(type => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => { setForm(f => ({ ...f, student_type: type })); setSubjectCodes([]) }}
-                className={`p-4 rounded-xl border-2 text-left transition-colors ${
-                  form.student_type === type
-                    ? "border-indigo-500 bg-indigo-50"
-                    : "border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                <div className="font-semibold capitalize text-sm">{type}</div>
-                <div className="text-xs text-gray-500 mt-0.5">
-                  {type === "regular"
-                    ? "Auto-assigned subjects, confirmed instantly"
-                    : "Pick your subjects, pending staff approval"}
-                </div>
-              </button>
-            ))}
-=======
     <div className="min-h-full py-8 px-6 flex flex-col items-center">
       {/* Back link */}
       <div className="w-full max-w-lg mb-4">
-        <a
+        <Link
           href="/"
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#9B1B1B] transition-colors"
         >
@@ -190,7 +109,7 @@ export default function EnrollPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
           </svg>
           Back to home
-        </a>
+        </Link>
       </div>
 
       {/* Form card */}
@@ -205,9 +124,8 @@ export default function EnrollPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">Enrollment Form</h1>
-              <p className="text-xs text-gray-500 mt-0.5">BSIT · AY 2025–2026 · 1st Semester</p>
+              <p className="text-xs text-gray-500 mt-0.5">{form.program} · AY 2025–2026 · 1st Semester</p>
             </div>
->>>>>>> Stashed changes
           </div>
         </div>
 
@@ -239,7 +157,7 @@ export default function EnrollPage() {
             </label>
             <input
               className={errors.student_id ? inputError : inputNormal}
-              placeholder="e.g. S10099"
+              placeholder="e.g. 2024-01092"
               value={form.student_id}
               onChange={e => setForm(f => ({ ...f, student_id: e.target.value }))}
             />
@@ -269,11 +187,13 @@ export default function EnrollPage() {
               <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
                 Program
               </label>
-              <input
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 text-gray-400 cursor-not-allowed outline-none"
-                value="BSIT"
-                readOnly
-              />
+              <select
+                className={inputNormal}
+                value={form.program}
+                onChange={e => setForm(f => ({ ...f, program: e.target.value as Program }))}
+              >
+                {PROGRAMS.map(p => <option key={p}>{p}</option>)}
+              </select>
             </div>
           </div>
 
