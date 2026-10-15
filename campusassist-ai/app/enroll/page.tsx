@@ -34,13 +34,20 @@ export default function EnrollPage() {
   const [loading,      setLoading]      = useState(false)
   const [subjectsLoading, setSubjectsLoading] = useState(false)
 
+  const [subjectsError, setSubjectsError] = useState<string | null>(null)
+
   // Load subjects when switching to irregular
   useEffect(() => {
     if (form.student_type !== "irregular") return
     setSubjectsLoading(true)
+    setSubjectsError(null)
     fetch("/api/subjects")
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error("Failed to load subjects")
+        return r.json()
+      })
       .then(data => setSubjects(Array.isArray(data) ? data : []))
+      .catch(() => setSubjectsError("Could not load subjects. Please refresh and try again."))
       .finally(() => setSubjectsLoading(false))
   }, [form.student_type])
 
@@ -167,6 +174,8 @@ export default function EnrollPage() {
             <label className="text-sm font-medium text-gray-700">Select Subjects</label>
             {subjectsLoading ? (
               <div className="text-sm text-gray-400 py-4 text-center">Loading subjects…</div>
+            ) : subjectsError ? (
+              <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{subjectsError}</p>
             ) : (
               <SubjectPicker
                 subjects={subjects}
