@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import type { Enrollment } from "@/types"
+import type { Enrollment, Subject } from "@/types"
 import { useRole } from "./RoleToggle"
 
 interface AdminTableProps {
@@ -16,9 +16,10 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
-  const [filter,     setFilter]     = useState<"all" | "pending">("pending")
-  const [expanding,  setExpanding]  = useState<string | null>(null)
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [filter,          setFilter]          = useState<"all" | "pending">("pending")
+  const [expanding,       setExpanding]       = useState<string | null>(null)
+  const [actionLoading,   setActionLoading]   = useState<string | null>(null)
+  const [subjectCache,    setSubjectCache]    = useState<Record<string, Subject[] | "loading" | "error">>({})
 
   const { isStaff } = useRole()
 
@@ -31,7 +32,7 @@ export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
   async function updateStatus(enrNumber: string, status: "confirmed" | "rejected") {
     setActionLoading(enrNumber)
     try {
-      await fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`, {
+      const res = await fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`, {
         method:  "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -39,9 +40,29 @@ export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
         },
         body: JSON.stringify({ status }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        alert(data.error ?? "Failed to update status. Please try again.")
+        return
+      }
       onStatusChange()
     } finally {
       setActionLoading(null)
+    }
+  }
+
+  async function handleExpand(enrNumber: string) {
+    if (expanding === enrNumber) { setExpanding(null); return }
+    setExpanding(enrNumber)
+    if (subjectCache[enrNumber] !== undefined) return
+    setSubjectCache(c => ({ ...c, [enrNumber]: "loading" }))
+    try {
+      const res = await fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`)
+      if (!res.ok) { setSubjectCache(c => ({ ...c, [enrNumber]: "error" })); return }
+      const data: Enrollment = await res.json()
+      setSubjectCache(c => ({ ...c, [enrNumber]: data.subjects ?? [] }))
+    } catch {
+      setSubjectCache(c => ({ ...c, [enrNumber]: "error" }))
     }
   }
 
@@ -108,7 +129,7 @@ export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
                   <tr
                     key={e.enr_number}
                     className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setExpanding(expanding === e.enr_number ? null : e.enr_number)}
+                    onClick={() => handleExpand(e.enr_number)}
                   >
                     <td className="px-4 py-3 font-mono text-indigo-600">{e.enr_number}</td>
                     <td className="px-4 py-3">
@@ -147,9 +168,13 @@ export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
                     <tr key={`${e.enr_number}-expand`} className="bg-indigo-50">
                       <td colSpan={6} className="px-6 py-4">
                         <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Enrolled Subjects</p>
-                        {e.subjects && e.subjects.length > 0 ? (
+                        {subjectCache[e.enr_number] === "loading" ? (
+                          <p className="text-sm text-gray-400">Loading subjects…</p>
+                        ) : subjectCache[e.enr_number] === "error" ? (
+                          <p className="text-sm text-red-400">Failed to load subjects.</p>
+                        ) : Array.isArray(subjectCache[e.enr_number]) && (subjectCache[e.enr_number] as Subject[]).length > 0 ? (
                           <ul className="space-y-1">
-                            {e.subjects.map(s => (
+                            {(subjectCache[e.enr_number] as Subject[]).map(s => (
                               <li key={s.code} className="text-sm text-gray-700 flex gap-2">
                                 <span className="font-mono text-indigo-500 w-16 shrink-0">{s.code}</span>
                                 <span>{s.name}</span>
@@ -158,7 +183,7 @@ export function AdminTable({ enrollments, onStatusChange }: AdminTableProps) {
                             ))}
                           </ul>
                         ) : (
-                          <p className="text-sm text-gray-400">No subjects loaded.</p>
+                          <p className="text-sm text-gray-400">No subjects found.</p>
                         )}
                       </td>
                     </tr>
