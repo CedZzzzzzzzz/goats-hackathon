@@ -4,7 +4,7 @@
 > Stack: Next.js (TypeScript) · Tailwind · shadcn/ui · Supabase · Zod · React Bits
 > 📎 See [`agents.md`](agents.md) for bootstrap commands, full endpoint contracts, component map, and Bob task format.
 
-> **Current admin rebuild checkpoint (`feat/admin-v2`):** Phase 0's safe base has been verified. Phase 1 has an admin-only shell and a `(student)` route group, but final verification and the direct student-view switch remain open. Phases 2–5 are not implemented. The original MVP tiers and timeline below describe product intent, not a verified completion report.
+> **Current admin rebuild checkpoint (`feat/admin-v2`):** Phases 0–3 are implemented. The admin shell is isolated, the dashboard and requests view use live enrollment data, and review actions enforce pending irregular transitions. Phase 4 reports/export and Phase 5 final visual polish remain. The original MVP tiers and timeline below describe product intent, not a verified completion report.
 
 ---
 
@@ -708,17 +708,17 @@ campusassist-ai/
 | `EnrollmentNumberReveal` | `/success` | URL param `?enr=` | Animates on mount |
 | `StatusTimeline` | `/track/[enr]` | `GET /api/enrollments/[enr]` | Highlights current step; handles confirmed/rejected branch |
 | `AdminTable` | `/admin` | `GET /api/enrollments` | Confirm/Reject buttons; expandable row shows subjects |
-| `PupilaAdminShell` | `/admin` layout | `ChatWindow` for AI panel | Admin-only chrome; Dashboard link works, Requests is disabled until Phase 2 |
-| `RoleToggle` | Student and admin headers | React context | Changes demo role; currently does not navigate between routes |
+| `PupilaAdminShell` | `/admin` layout | `ChatWindow` for AI panel | Admin-only chrome; Dashboard and Requests links work |
+| `RoleToggle` | Student and admin headers | React context | Changes demo role and navigates between `/` and `/admin` |
 
 ### Admin rebuild phases (separate from MVP tiers above)
 
 | Phase | Scope | Current checkpoint |
 |---|---|---|
 | 0 | Safe branch/base and prototype inventory | Safe base verified; no separate Phase 0 artifact verified |
-| 1 | Isolated admin shell, truthful navigation, view switch, tests | Route isolation and shell present; final view-switch behavior and verification still open |
-| 2 | Data-backed PUPILA dashboard and separate Requests view | Not started; existing `/admin` table remains functional base UI |
-| 3 | Review-action UX and state-machine checks | Not started; existing PATCH flow remains |
+| 1 | Isolated admin shell, truthful navigation, view switch, tests | Implemented |
+| 2 | Data-backed PUPILA dashboard and separate Requests view | Implemented |
+| 3 | Review-action UX and state-machine checks | Implemented |
 | 4 | Reports or export only where supported by real data | Not started; no `/admin/reports` page or schedule backend exists |
 | 5 | Integration, regression, and demo polish | Not started |
 

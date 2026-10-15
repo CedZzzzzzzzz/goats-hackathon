@@ -15,8 +15,8 @@ export function ChatWindow() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role:    "assistant",
-      content: "Hi! I'm CampusAssist AI. Ask me anything about enrollment.",
-      ai:      { answer: "Hi! I'm CampusAssist AI. Ask me anything about enrollment.", source: null, type: "info", items: null },
+      content: "Hi! I'm CampusAssist AI. Ask me anything about the enrollment process.",
+      ai:      { answer: "Hi! I'm CampusAssist AI. Ask me anything about the enrollment process.", source: null, type: "info", items: null },
     },
   ])
   const [input,   setInput]   = useState("")
@@ -53,22 +53,31 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col h-[600px] border border-gray-200 rounded-xl overflow-hidden">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+    <div className="flex flex-col h-full bg-[#FAFAFA]">
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[80%] ${msg.role === "user" ? "order-1" : ""}`}>
+            {msg.role === "assistant" && (
+              <div className="w-6 h-6 rounded-full bg-[#9B1B1B]/10 flex items-center justify-center shrink-0 mt-0.5 mr-2">
+                <svg className="w-3.5 h-3.5 text-[#9B1B1B]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
+                </svg>
+              </div>
+            )}
+            <div className="max-w-[82%]">
               {msg.role === "user" ? (
-                <div className="bg-indigo-600 text-white px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm">
+                <div className="bg-[#9B1B1B] text-white px-3.5 py-2.5 rounded-2xl rounded-tr-sm text-[13px] leading-relaxed shadow-sm">
                   {msg.content}
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <div className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm text-gray-800">
+                <div className="space-y-1.5">
+                  <div className="bg-white border border-gray-200 px-3.5 py-2.5 rounded-2xl rounded-tl-sm text-[13px] text-gray-800 leading-relaxed shadow-sm">
                     {msg.content}
                     {msg.ai?.source && msg.ai.type !== "checklist" && (
-                      <p className="text-xs text-gray-400 mt-1">Source: {msg.ai.source}</p>
+                      <p className="text-[11px] text-gray-400 mt-1.5 pt-1.5 border-t border-gray-100">
+                        Source: {msg.ai.source}
+                      </p>
                     )}
                   </div>
                   {msg.ai?.type === "checklist" && msg.ai.items && (
@@ -79,33 +88,50 @@ export function ChatWindow() {
             </div>
           </div>
         ))}
+
         {loading && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 px-4 py-2.5 rounded-2xl rounded-tl-sm text-sm text-gray-400">
-              Thinking…
+          <div className="flex justify-start items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-[#9B1B1B]/10 flex items-center justify-center shrink-0">
+              <svg className="w-3.5 h-3.5 text-[#9B1B1B]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
+              </svg>
+            </div>
+            <div className="bg-white border border-gray-200 px-3.5 py-2.5 rounded-2xl rounded-tl-sm shadow-sm">
+              {/* Three-dot loader */}
+              <div className="flex gap-1 items-center h-4">
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"/>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"/>
+                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"/>
+              </div>
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar */}
-      <div className="border-t border-gray-200 bg-white p-3 flex gap-2">
-        <input
-          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300"
-          placeholder="Ask about enrollment…"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && send()}
-          disabled={loading}
-        />
-        <button
-          onClick={send}
-          disabled={loading || !input.trim()}
-          className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+      {/* ── Input bar ── */}
+      <div className="px-3 pb-3 pt-2 border-t border-gray-100 bg-[#FAFAFA]">
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#9B1B1B]/40 focus-within:ring-2 focus-within:ring-[#9B1B1B]/10 transition-all">
+          <input
+            className="flex-1 text-[13px] outline-none placeholder:text-gray-400 bg-transparent text-gray-800"
+            placeholder="Ask AI…"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+            disabled={loading}
+          />
+          <button
+            onClick={send}
+            disabled={loading || !input.trim()}
+            aria-label="Send"
+            className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#9B1B1B] text-white disabled:opacity-30 hover:bg-[#7a1515] active:scale-95 transition-all shrink-0"
+          >
+            <Send className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-400 text-center mt-2">
+          Answers from curated enrollment content only
+        </p>
       </div>
     </div>
   )

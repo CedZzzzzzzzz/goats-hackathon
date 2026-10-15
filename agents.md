@@ -13,10 +13,10 @@
 **Key design constraints:**
 - AI chatbot answers only from approved content in `lib/kb.json` — no external LLM API, no vector DB
 - Every AI answer cites its source; unknown questions get a safe "I don't know" response
-- No real authentication — a demo role-switch toggle switches between student and staff views
+- Student sign-in and sign-up exist at `/auth`; admin access still uses a demo role-switch toggle and is not production authorization
 - All data is fake; this is not a production system
 - One workflow done well is the goal
-
+- A feature that was changed should update the documentation of the files that is related to it.
 ---
 
 ## Tech Stack
@@ -713,7 +713,7 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 
 ## Demo Auth Pattern
 
-No real auth. `RoleProvider` in the root layout stores an `isStaff` boolean. `RoleToggle` appears in the student and admin headers and changes that demo role; it does not navigate between routes. The `/admin` page shows an access message and a link back to `/` when `isStaff` is false. Admin API calls from the frontend attach:
+Student authentication exists separately at `/auth`. Admin access is still a demo-only role toggle, not production authorization. `RoleProvider` in the root layout stores an `isStaff` boolean. `RoleToggle` changes that role and navigates between `/` and `/admin`. Admin API calls from the frontend attach:
 
 ```ts
 headers: { "x-demo-role": "staff" }
@@ -1060,7 +1060,7 @@ Bob will write tests that cover:
 
 ### What this project is
 
-CampusAssist AI is a **Next.js + TypeScript + Supabase** web app for student enrollment. A student fills in an enrollment form, identifies as regular or irregular, receives an ENR number, and tracks their status. Irregular students select subjects and wait for staff approval. Staff confirm or reject pending enrollments in an admin dashboard. There is no real authentication.
+CampusAssist AI is a **Next.js + TypeScript + Supabase** web app for student enrollment. A student fills in an enrollment form, identifies as regular or irregular, receives an ENR number, and tracks their status. Irregular students select subjects and wait for staff approval. Staff confirm or reject pending enrollments in an admin dashboard. Student auth exists at `/auth`; admin authorization remains demo-only.
 
 ### What the AI inside the app does
 
@@ -1078,7 +1078,7 @@ The in-app AI chatbot (`lib/ai.ts`) is **not a language model**. It is a keyword
 
 ### Constraints Bob must never break
 
-1. **Do not add real authentication.** The demo role header (`x-demo-role: staff`) is sufficient.
+1. **Do not treat the demo admin role header as real authorization.** Student auth exists at `/auth`, but admin API calls still use `x-demo-role: staff`.
 2. **Do not call external AI APIs** (OpenAI, Anthropic, etc.) — the matcher in `lib/ai.ts` is the only AI.
 3. **Do not add new Zod schemas** without adding them to `lib/schemas.ts`.
 4. **Do not add new TypeScript types** without adding them to `types/index.ts`.
@@ -1168,9 +1168,9 @@ Before starting the clock:
 
 ## Admin Experience — PUPILA (feat/admin-v2)
 
-> Status: **Phase 0 safe branch/base verified · Phase 1 route isolation and shell implemented, final verification pending · Phases 2–5 not started**. The branch contains one Phase 1 commit and uncommitted follow-up fixes; no separate Phase 0 artifact or completed visual check has been verified here.
+> Status: **Phases 0–3 implemented; Phase 4 reports/export and Phase 5 final polish remain.** `origin/main` auth and enrollment changes have been integrated; the separate `feature/user-page` branch has not.
 
-### What is implemented (Phase 0–1)
+### What is implemented
 
 The admin shell lives exclusively under `/admin`. It uses **PUPILA branding** — distinct from the student-side CampusAssist branding. Student page files were moved into the `(student)` route group without changing their public URLs or enrollment workflow; API contracts were not changed by this admin branch.
 
@@ -1178,8 +1178,9 @@ The admin shell lives exclusively under `/admin`. It uses **PUPILA branding** �
 
 ```
 app/layout.tsx              → RoleProvider only (no header, no sidebar)
-app/(student)/layout.tsx    → Student nav: CampusAssist AI header + Enroll/Ask AI links + RoleToggle
+app/(student)/layout.tsx    → Student header, sidebar, and content; updated main student pages
 app/admin/layout.tsx        → Renders PupilaAdminShell (PUPILA header + sidebar + AI panel)
+app/auth/page.tsx           → Student sign-in and sign-up, outside both route shells
 ```
 
 The `(student)` route group is a Next.js App Router convention: the group name is stripped from URLs. Student URLs remain `/`, `/enroll`, `/chat`, `/success`, and `/track/[enr]` — unchanged.
@@ -1191,15 +1192,15 @@ The `(student)` route group is a Next.js App Router convention: the group name i
 - **Content area:** `pupila-bg` background, responsive padding
 - **Right AI panel (340px):** "PUPILA AI Assistant" header, `ChatWindow`, disclaimer. Visible on `/admin` only; hidden below `xl` breakpoint and on future `/admin/reports`
 
-#### Sidebar nav items (Phase 1)
+#### Sidebar nav items
 
 | Label | Element | Destination | Active when |
 |---|---|---|---|
 | Dashboard | `<Link>` | `/admin` | `pathname === "/admin"` |
-| Requests | `<span aria-disabled>` | None (Phase 2) | Never (disabled label) |
-| Reports | `<Link>` (conditional in shell) | `/admin/reports` | Would render only on that route; the page does not exist yet |
+| Requests | `<Link>` | `/admin/requests` | On the requests route |
+| Reports | Disabled label | None (Phase 4) | Never |
 
-Requests is intentionally a disabled `<span>`, not a link, until Phase 2 adds the view. Schedule from the prototype has no backend and does not appear in nav.
+Schedule from the prototype has no backend and does not appear in nav.
 
 #### Demo view-switch behaviour
 
@@ -1210,7 +1211,7 @@ The `RoleToggle` button (in the PUPILA header) switches `isStaff` in `RoleContex
 | `isStaff = true` | Full enrollment dashboard renders |
 | `isStaff = false` | Lock screen with "← Back to student portal" link to `/` |
 
-Selecting "Student View" from `/admin` currently changes the role but **does not navigate**. The admin page then displays the lock screen with a separate link to `/`. From a student page, the toggle changes the role but also does not navigate; the user must follow the Admin link to `/admin`. This is an open Phase 1 UX correction, not a completed direct view-switch journey.
+Selecting "Student View" from `/admin` navigates to `/`; selecting "Admin View" from a student page navigates to `/admin`. This is a demo view switch, not authorization.
 
 #### PUPILA colour tokens (`tailwind.config.ts`)
 
@@ -1228,26 +1229,26 @@ Selecting "Student View" from `/admin` currently changes the role but **does not
 "pupila-green":     "#1f8a5b",
 ```
 
-These are named in the `pupila-*` namespace and currently used by the admin shell and access state. The existing admin dashboard/table and chat widget still use their original styling.
+These are named in the `pupila-*` namespace and used by the admin shell, dashboard, and requests view.
 
 ### What is NOT yet implemented
 
 | Feature | Phase | Notes |
 |---|---|---|
-| Dashboard stat cards (real data, PUPILA visual) | Phase 2 | Current admin page uses the old base design |
-| Requests view (two-column list + detail panel) | Phase 2 | AdminTable is functional; PUPILA reskin pending |
-| Confirm/Reject with inline error + state-machine guard | Phase 3 | PATCH API works; alert() replacement and 409 guard pending |
-| Reports page (`/admin/reports`) | Phase 4 | No page exists yet; nav link is conditional |
+| Dashboard stat cards (real data, PUPILA visual) | Phase 2 | Implemented |
+| Requests view (two-column list + detail panel) | Phase 2 | Implemented |
+| Confirm/Reject with inline error + state-machine guard | Phase 3 | Implemented; pending irregular transitions only |
+| Reports page (`/admin/reports`) | Phase 4 | Not implemented; nav label disabled |
 | CSV export | Phase 4 | Native Blob only; no CDN scripts |
 | Schedule view | Deferred | No schedules table, no backend |
 | Rejection reason field | Deferred | No DB column; not in schema |
 | "Verify with AI" | Never | Requires external LLM API — violates project constraints |
 
-### Phase 1 exit checks still required
+### Integration checks still required
 
-- Verify the role-switch journey so "Student View" from `/admin` reaches the student side directly, or explicitly approve the current two-click lock-screen behavior.
-- Run the focused admin tests, TypeScript check, lint, and desktop/mobile route checks after the uncommitted fixes are finalized.
-- Keep student/login teammate changes separate; coordinate edits to shared layouts or `RoleToggle` before merging.
+- Confirm the desktop and mobile layouts visually, especially the student shell and auth page.
+- Re-run the production build in an environment that can write `.next` if local filesystem permissions prevent it.
+- Coordinate the separate `feature/user-page` branch before merging it; it touches student routes and enrollment APIs.
 
 ### Test files (admin)
 
