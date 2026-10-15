@@ -286,7 +286,7 @@ export interface AIResponse {
 ```sql
 create table enrollments (
   id              bigserial primary key,
-  enr_number      text not null unique,              -- ENR-2025-0042
+  enr_number      text not null unique,              -- ENR-00042-MN-0 (regular) / ENR-00042-MN-1 (irregular)
   full_name       text not null,
   student_id      text not null,
   student_type    text not null check (student_type in ('regular', 'irregular')),
@@ -398,10 +398,10 @@ insert into curricula (year_level, program, subject_code, subject_name, units) v
 **Enrollments (demo rows)**
 ```sql
 insert into enrollments (enr_number, full_name, student_id, student_type, year_level, program, status) values
-  ('ENR-2025-0001', 'Alex Rivera',  'S10001', 'regular',   '2nd Year', 'BSIT', 'confirmed'),
-  ('ENR-2025-0002', 'Jordan Lee',   'S10002', 'irregular', '3rd Year', 'BSIT', 'pending'),
-  ('ENR-2025-0003', 'Morgan Patel', 'S10003', 'irregular', '2nd Year', 'BSIT', 'confirmed'),
-  ('ENR-2025-0004', 'Casey Nguyen', 'S10004', 'regular',   '1st Year', 'BSIT', 'confirmed');
+  ('ENR-00001-MN-0', 'Alex Rivera',  '2024-10001', 'regular',   '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-00002-MN-1', 'Jordan Lee',   '2024-10002', 'irregular', '3rd Year', 'BSIT', 'pending'),
+  ('ENR-00003-MN-1', 'Morgan Patel', '2024-10003', 'irregular', '2nd Year', 'BSIT', 'confirmed'),
+  ('ENR-00004-MN-0', 'Casey Nguyen', '2025-10004', 'regular',   '1st Year', 'BSIT', 'confirmed');
 ```
 
 ### RLS (Row Level Security)
@@ -554,7 +554,7 @@ Error responses always follow `{ error: string }`.
 **Response `201` — irregular student**
 ```json
 {
-  "enr_number": "ENR-2025-0005",
+  "enr_number": "ENR-00005-MN-1",
   "status":     "pending",
   "subjects": [
     { "code": "IT101", "name": "Introduction to Computing", "units": 3 },
@@ -567,7 +567,7 @@ Error responses always follow `{ error: string }`.
 **Response `201` — regular student** (no `subject_codes` in request)
 ```json
 {
-  "enr_number": "ENR-2025-0006",
+  "enr_number": "ENR-00006-MN-0",
   "status":     "confirmed",
   "subjects": [
     { "code": "IT201", "name": "Data Structures and Algorithms", "units": 3 },
@@ -591,13 +591,13 @@ Error responses always follow `{ error: string }`.
 
 **ENR number generation logic** (in `lib/utils.ts`):
 ```ts
-export function generateEnrNumber(id: number): string {
-  const year = new Date().getFullYear()
-  const seq  = String(id).padStart(4, "0")
-  return `ENR-${year}-${seq}`
+export function generateEnrNumber(id: number, studentType: "regular" | "irregular"): string {
+  const seq  = String(id).padStart(5, "0")
+  const flag = studentType === "regular" ? "0" : "1"
+  return `ENR-${seq}-MN-${flag}`
 }
 ```
-Insert the row first (Supabase returns the `id`), then update `enr_number` using the returned `id`.
+Insert the row first (Supabase returns the `id`), then update `enr_number` using `generateEnrNumber(id, student_type)`.
 
 ---
 
@@ -605,12 +605,12 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 
 **Purpose:** Fetch the status and full detail of a single enrollment by ENR number. Used by the student tracking page.
 
-**URL param:** `enr` — e.g. `ENR-2025-0005`
+**URL param:** `enr` — e.g. `ENR-00005-MN-1`
 
 **Response `200`**
 ```json
 {
-  "enr_number":    "ENR-2025-0005",
+  "enr_number":    "ENR-00005-MN-1",
   "full_name":     "Sam Torres",
   "student_type":  "irregular",
   "year_level":    "2nd Year",
@@ -669,7 +669,7 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 
 **Purpose:** Confirm or reject a pending enrollment (admin only).
 
-**URL param:** `enr` — e.g. `ENR-2025-0002`
+**URL param:** `enr` — e.g. `ENR-00002-MN-1`
 
 **Request body**
 ```json
@@ -679,7 +679,7 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 **Response `200`**
 ```json
 {
-  "enr_number": "ENR-2025-0002",
+  "enr_number": "ENR-00002-MN-1",
   "status":     "confirmed",
   "updated_at": "2025-07-01T15:30:00Z"
 }
@@ -1076,7 +1076,7 @@ The in-app AI chatbot (`lib/ai.ts`) is **not a language model**. It is a keyword
 2. **Do not call external AI APIs** (OpenAI, Anthropic, etc.) — the matcher in `lib/ai.ts` is the only AI.
 3. **Do not add new Zod schemas** without adding them to `lib/schemas.ts`.
 4. **Do not add new TypeScript types** without adding them to `types/index.ts`.
-5. **Do not change the `enr_number` format** (`ENR-YYYY-NNNN`) — it is shown to users and used in URLs.
+5. **Do not change the `enr_number` format** (`ENR-NNNNN-MN-0/1`) — it is shown to users and used in URLs. `0` = regular, `1` = irregular.
 6. **Do not change existing API response shapes** — frontend and backend are coupled to the contracts in this file.
 7. **One thing at a time.** Write one component or one route per task. Do not refactor unrelated code.
 8. **Never import `lib/supabase.ts` outside of `app/api/**/route.ts` files.** Pages and components call the API layer — they never touch Supabase directly. See Data Access Rules in Coding Conventions.

@@ -16,9 +16,10 @@ describe("ChatRequestSchema", () => {
 })
 
 describe("EnrollmentSchema", () => {
+  // student_id uses the new YYYY-NNNNN format
   const base = {
     full_name:    "Sam Torres",
-    student_id:   "S10099",
+    student_id:   "2024-01092",
     year_level:   "2nd Year",
     program:      "BSIT"
   }
@@ -60,6 +61,31 @@ describe("EnrollmentSchema", () => {
 
   it("fails on invalid year_level", () => {
     expect(EnrollmentSchema.safeParse({ ...base, student_type: "regular", year_level: "5th Year" }).success).toBe(false)
+  })
+
+  // ── student_id format validation ──────────────────────────────────────
+  it("accepts a valid student_id in YYYY-NNNNN format", () => {
+    expect(EnrollmentSchema.safeParse({ ...base, student_type: "regular", student_id: "2024-01092" }).success).toBe(true)
+  })
+
+  it("rejects student_id with MN suffix (e.g. 2024-1092-MN-0)", () => {
+    const result = EnrollmentSchema.safeParse({ ...base, student_type: "regular", student_id: "2024-1092-MN-0" })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues[0].message).toMatch(/YYYY-NNNNN/i)
+    }
+  })
+
+  it("rejects student_id with fewer than 5 digits after the hyphen (e.g. 2024-1092)", () => {
+    expect(EnrollmentSchema.safeParse({ ...base, student_type: "regular", student_id: "2024-1092" }).success).toBe(false)
+  })
+
+  it("rejects student_id with no year prefix (e.g. S10099)", () => {
+    expect(EnrollmentSchema.safeParse({ ...base, student_type: "regular", student_id: "S10099" }).success).toBe(false)
+  })
+
+  it("rejects student_id with letters mixed in (e.g. 2024-A1092)", () => {
+    expect(EnrollmentSchema.safeParse({ ...base, student_type: "regular", student_id: "2024-A1092" }).success).toBe(false)
   })
 })
 
