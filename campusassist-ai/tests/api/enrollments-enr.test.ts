@@ -4,8 +4,8 @@ import { NextRequest } from "next/server"
 // ── Supabase mock ──────────────────────────────────────────────────────
 
 const mockEnrollment = {
-  id: 2, enr_number: "ENR-2025-0002", full_name: "Jordan Lee",
-  student_id: "S10002", student_type: "irregular", year_level: "3rd Year",
+  id: 2, enr_number: "ENR-00002-MN-1", full_name: "Jordan Lee",
+  student_id: "2024-10002", student_type: "irregular", year_level: "3rd Year",
   program: "BSIT", semester: "1st Semester", academic_year: "2025-2026",
   status: "pending", created_at: "2025-07-01T10:00:00Z", updated_at: "2025-07-01T10:00:00Z"
 }
@@ -38,7 +38,7 @@ vi.mock("@/lib/supabase", () => {
               eq:     vi.fn().mockReturnThis(),
               select: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValue({
-                data: { enr_number: "ENR-2025-0002", status: "confirmed", updated_at: "2025-07-01T15:00:00Z" },
+                data: { enr_number: "ENR-00002-MN-1", status: "confirmed", updated_at: "2025-07-01T15:00:00Z" },
                 error: null
               })
             }
@@ -76,10 +76,10 @@ describe("GET /api/enrollments/[enr]", () => {
   beforeEach(() => { vi.clearAllMocks(); enrollmentsCallCount = 0 })
 
   it("returns 200 with full enrollment detail and subjects array", async () => {
-    const res = await GET(makeGetRequest("ENR-2025-0002"), params("ENR-2025-0002"))
+    const res = await GET(makeGetRequest("ENR-00002-MN-1"), params("ENR-00002-MN-1"))
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json.enr_number).toBe("ENR-2025-0002")
+    expect(json.enr_number).toBe("ENR-00002-MN-1")
     expect(json.status).toBe("pending")
     expect(Array.isArray(json.subjects)).toBe(true)
     expect(json.subjects[0]).toHaveProperty("code")
@@ -94,7 +94,7 @@ describe("GET /api/enrollments/[enr]", () => {
       eq:     vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({ data: null, error: { message: "not found" } })
     } as any)
-    const res = await GET(makeGetRequest("ENR-9999-9999"), params("ENR-9999-9999"))
+    const res = await GET(makeGetRequest("ENR-99999-MN-0"), params("ENR-99999-MN-0"))
     expect(res.status).toBe(404)
     const json = await res.json()
     expect(json.error).toBe("Enrollment not found")
@@ -111,18 +111,18 @@ describe("PATCH /api/enrollments/[enr]", () => {
       eq:     vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({
-        data: { enr_number: "ENR-2025-0002", status: "confirmed", updated_at: "2025-07-01T15:00:00Z" },
+        data: { enr_number: "ENR-00002-MN-1", status: "confirmed", updated_at: "2025-07-01T15:00:00Z" },
         error: null
       })
     } as any)
     const res = await PATCH(
-      makePatchRequest("ENR-2025-0002", { status: "confirmed" }, { "x-demo-role": "staff" }),
-      params("ENR-2025-0002")
+      makePatchRequest("ENR-00002-MN-1", { status: "confirmed" }, { "x-demo-role": "staff" }),
+      params("ENR-00002-MN-1")
     )
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json.status).toBe("confirmed")
-    expect(json.enr_number).toBe("ENR-2025-0002")
+    expect(json.enr_number).toBe("ENR-00002-MN-1")
   })
 
   it("returns 200 when staff rejects an enrollment", async () => {
@@ -132,13 +132,13 @@ describe("PATCH /api/enrollments/[enr]", () => {
       eq:     vi.fn().mockReturnThis(),
       select: vi.fn().mockReturnThis(),
       single: vi.fn().mockResolvedValue({
-        data: { enr_number: "ENR-2025-0002", status: "rejected", updated_at: "2025-07-01T16:00:00Z" },
+        data: { enr_number: "ENR-00002-MN-1", status: "rejected", updated_at: "2025-07-01T16:00:00Z" },
         error: null
       })
     } as any)
     const res = await PATCH(
-      makePatchRequest("ENR-2025-0002", { status: "rejected" }, { "x-demo-role": "staff" }),
-      params("ENR-2025-0002")
+      makePatchRequest("ENR-00002-MN-1", { status: "rejected" }, { "x-demo-role": "staff" }),
+      params("ENR-00002-MN-1")
     )
     expect(res.status).toBe(200)
     const json = await res.json()
@@ -147,8 +147,8 @@ describe("PATCH /api/enrollments/[enr]", () => {
 
   it("returns 403 without the staff header", async () => {
     const res = await PATCH(
-      makePatchRequest("ENR-2025-0002", { status: "confirmed" }),
-      params("ENR-2025-0002")
+      makePatchRequest("ENR-00002-MN-1", { status: "confirmed" }),
+      params("ENR-00002-MN-1")
     )
     expect(res.status).toBe(403)
     const json = await res.json()
@@ -157,8 +157,8 @@ describe("PATCH /api/enrollments/[enr]", () => {
 
   it("returns 400 for an invalid status value", async () => {
     const res = await PATCH(
-      makePatchRequest("ENR-2025-0002", { status: "maybe" }, { "x-demo-role": "staff" }),
-      params("ENR-2025-0002")
+      makePatchRequest("ENR-00002-MN-1", { status: "maybe" }, { "x-demo-role": "staff" }),
+      params("ENR-00002-MN-1")
     )
     expect(res.status).toBe(400)
     const json = await res.json()
