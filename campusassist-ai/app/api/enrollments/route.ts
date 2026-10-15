@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server"
 import { EnrollmentSchema } from "@/lib/schemas"
-import { supabase, supabaseAdmin, supabaseReady } from "@/lib/supabase"
+import {
+  supabaseAdmin,
+  supabaseReady,
+  verifyToken,
+  isAdminUser,
+} from "@/lib/supabase"
 import { generateEnrNumber } from "@/lib/utils"
 import { rateLimit, getClientIp } from "@/lib/rate-limit"
 import { addMemEnrollment, getAllMemEnrollments } from "@/lib/mem-store"
@@ -39,23 +44,30 @@ const VALID_STATUSES = ["pending", "confirmed", "rejected"] as const
 
 export async function GET(req: NextRequest) {
   try {
-    if (req.headers.get("x-demo-role") !== "staff") {
-      return Response.json({ error: "Staff access required" }, { status: 403 })
-    }
-
     const statusParam = req.nextUrl.searchParams.get("status")
 
     if (!supabaseReady) {
+      // In-memory fallback — accept x-demo-role header for dev convenience
+      if (req.headers.get("x-demo-role") !== "staff") {
+        return Response.json({ error: "Staff access required" }, { status: 403 })
+      }
       const all = getAllMemEnrollments()
       const rows = statusParam ? all.filter(e => e.status === statusParam) : all
       return Response.json([...rows].reverse(), { status: 200 })
+    }
+
+    // With Supabase: require a verified admin JWT
+    const admin = await isAdminUser(req.headers.get("authorization"))
+    if (!admin) {
+      return Response.json({ error: "Staff access required" }, { status: 403 })
     }
 
     const validStatus = VALID_STATUSES.includes(statusParam as typeof VALID_STATUSES[number])
       ? (statusParam as typeof VALID_STATUSES[number])
       : null
 
-    let query = supabase
+    // Admin client bypasses RLS — can read all rows
+    let query = supabaseAdmin
       .from("enrollments")
       .select("enr_number, full_name, student_id, student_type, year_level, program, status, created_at")
 
@@ -106,7 +118,15 @@ export async function POST(req: NextRequest) {
 
     // PATH A: Supabase is configured
     if (supabaseReady) {
-      return await handleWithSupabase({ full_name, student_id, student_type, year_level, program, subject_codes })
+      // Verify the student's JWT — required so we can store user_id and enforce RLS
+      const user = await verifyToken(req.headers.get("authorization"))
+      if (!user) {
+        return Response.json({ error: "Authentication required. Please sign in to enroll." }, { status: 401 })
+      }
+      return await handleWithSupabase({
+        full_name, student_id, student_type, year_level, program, subject_codes,
+        user_id: user.id,
+      })
     }
 
     // PATH B: Demo / no Supabase, in-memory store
@@ -148,11 +168,14 @@ async function handleWithSupabase(data: {
   year_level:     string
   program:        string
   subject_codes?: string[]
+  user_id:        string
 }): Promise<Response> {
-  const { full_name, student_id, student_type, year_level, program, subject_codes } = data
+  const { full_name, student_id, student_type, year_level, program, subject_codes, user_id } = data
   const status = student_type === "regular" ? "confirmed" : "pending"
 
-  // 1. Insert with placeholder enr_number (admin client bypasses RLS)
+  // 1. Insert with placeholder enr_number.
+  // Admin client (service-role key) bypasses RLS, so the insert succeeds
+  // even though user_id must match for the eventual student-read RLS policy.
   const { data: enrollment, error: insertError } = await supabaseAdmin
     .from("enrollments")
     .insert({
@@ -163,6 +186,7 @@ async function handleWithSupabase(data: {
       year_level,
       program,
       status,
+      user_id,           // store verified user_id for RLS ownership
     })
     .select("id")
     .single()

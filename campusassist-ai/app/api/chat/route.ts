@@ -11,17 +11,18 @@
 
 import { NextRequest } from "next/server"
 import { GeminiChatRequestSchema } from "@/lib/schemas"
-import { geminiReady, streamGeminiResponse, buildConfig } from "@/lib/gemini"
+import { geminiReady, streamGeminiResponse, buildConfig, GEMINI_TOOLS } from "@/lib/gemini"
 import { buildSystemInstruction } from "@/lib/chat-prompt"
+import { classifyMessage } from "@/lib/chat-classifier"
 import { getAIResponse } from "@/lib/ai"
 import { supabase, supabaseAdmin, supabaseReady } from "@/lib/supabase"
 import { getMemEnrollment } from "@/lib/mem-store"
-import type { Content } from "@google/genai"
+import type { Content, GenerateContentConfig } from "@google/genai"
 
 // ── Rate limiting (per-IP, in-memory) ────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
-const RATE_LIMIT    = 15   // requests per window
-const RATE_WINDOW   = 60_000 // 1 minute in ms
+const RATE_LIMIT    = 15      // requests per window
+const RATE_WINDOW   = 60_000  // 1 minute in ms
 
 function getClientIp(req: NextRequest): string {
   return (
@@ -41,7 +42,6 @@ function rateLimit(ip: string): boolean {
   }
 
   if (record.count >= RATE_LIMIT) return false
-
   record.count++
   return true
 }
@@ -49,16 +49,51 @@ function rateLimit(ip: string): boolean {
 // ── ENR number regex ──────────────────────────────────────────────────
 const ENR_REGEX = /ENR-\d{5}-[A-Z]{2}-[01]/i
 
-// ── Tool execution ─────────────────────────────────────────────────────
+// ── SSE helper ────────────────────────────────────────────────────────
+const encoder = new TextEncoder()
+function sseChunk(data: object): Uint8Array {
+  return encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+}
+
+// ── Fixed off-topic reply stream ──────────────────────────────────────
+function offTopicStream(): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(sseChunk({
+        type: "chunk",
+        text: "I can only help with enrollment, schedules, subjects and tracking. Is there something about your enrollment I can help with?",
+      }))
+      controller.enqueue(sseChunk({ type: "done" }))
+      controller.close()
+    },
+  })
+}
+
+// ── Keyword-only fallback (when GEMINI_API_KEY is missing) ────────────
+function keywordFallbackStream(message: string): ReadableStream<Uint8Array> {
+  const aiResp = getAIResponse(message)
+  const text   = aiResp.type !== "unknown"
+    ? aiResp.answer
+    : "I'm sorry, I don't have information about that right now. Please contact the Registrar's Office or Enrollment Office for assistance."
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(sseChunk({ type: "chunk", text }))
+      controller.enqueue(sseChunk({ type: "done" }))
+      controller.close()
+    },
+  })
+}
+
+// ── Tool execution ────────────────────────────────────────────────────
 async function executeTool(
   name: string,
   args: Record<string, unknown>
 ): Promise<unknown> {
-  // ── get_enrollment_status ──────────────────────────────────────────
+  // ── get_enrollment_status ────────────────────────────────────────
   if (name === "get_enrollment_status") {
     const enr = String(args.enr_number ?? "").trim().toUpperCase()
 
-    // Validate ENR format before querying
     if (!ENR_REGEX.test(enr)) {
       return { error: "No enrollment found for that ENR number" }
     }
@@ -107,7 +142,7 @@ async function executeTool(
     }
   }
 
-  // ── get_subjects ───────────────────────────────────────────────────
+  // ── get_subjects ─────────────────────────────────────────────────
   if (name === "get_subjects") {
     const yearLevel = String(args.year_level ?? "")
     const program   = String(args.program ?? "")
@@ -134,25 +169,25 @@ async function executeTool(
       }
     }
 
-    // Fallback demo subjects
+    // Demo fallback
     const DEMO_SUBJECTS: Record<string, { code: string; name: string; units: number }[]> = {
       "1st Year": [
-        { code: "IT101", name: "Introduction to Computing",         units: 3 },
-        { code: "IT102", name: "Computer Programming 1",            units: 3 },
-        { code: "IT103", name: "Mathematics in the Modern World",   units: 3 },
+        { code: "IT101", name: "Introduction to Computing",       units: 3 },
+        { code: "IT102", name: "Computer Programming 1",          units: 3 },
+        { code: "IT103", name: "Mathematics in the Modern World", units: 3 },
       ],
       "2nd Year": [
-        { code: "IT201", name: "Data Structures and Algorithms",    units: 3 },
-        { code: "IT202", name: "Object-Oriented Programming",       units: 3 },
-        { code: "IT203", name: "Database Management Systems",       units: 3 },
+        { code: "IT201", name: "Data Structures and Algorithms",  units: 3 },
+        { code: "IT202", name: "Object-Oriented Programming",     units: 3 },
+        { code: "IT203", name: "Database Management Systems",     units: 3 },
       ],
       "3rd Year": [
-        { code: "IT301", name: "Web Systems and Technologies",      units: 3 },
-        { code: "IT302", name: "Networks and Communications",       units: 3 },
+        { code: "IT301", name: "Web Systems and Technologies",    units: 3 },
+        { code: "IT302", name: "Networks and Communications",     units: 3 },
       ],
       "4th Year": [
-        { code: "IT401", name: "Capstone Project 1",                units: 3 },
-        { code: "IT402", name: "Software Engineering",              units: 3 },
+        { code: "IT401", name: "Capstone Project 1",              units: 3 },
+        { code: "IT402", name: "Software Engineering",            units: 3 },
       ],
     }
 
@@ -163,7 +198,7 @@ async function executeTool(
     }
   }
 
-  // ── get_schedule ───────────────────────────────────────────────────
+  // ── get_schedule ─────────────────────────────────────────────────
   if (name === "get_schedule") {
     const enr = String(args.enr_number ?? "").trim().toUpperCase()
 
@@ -197,31 +232,16 @@ async function executeTool(
   return { error: `Unknown tool: ${name}` }
 }
 
-// ── Keyword-only fallback (uses existing getAIResponse) ───────────────
-function keywordFallbackStream(message: string): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder()
-
-  function sseChunk(data: object): Uint8Array {
-    return encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
-  }
-
-  const aiResp = getAIResponse(message)
-  const text   = aiResp.type !== "unknown"
-    ? aiResp.answer
-    : "I'm sorry, I don't have information about that right now. Please contact the Registrar's Office or Enrollment Office for assistance."
-
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(sseChunk({ type: "chunk", text }))
-      controller.enqueue(sseChunk({ type: "done" }))
-      controller.close()
-    },
-  })
+// ── SSE response headers ──────────────────────────────────────────────
+const SSE_HEADERS = {
+  "Content-Type":  "text/event-stream",
+  "Cache-Control": "no-cache",
+  "Connection":    "keep-alive",
 }
 
 // ── Route handler ─────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  // Rate limit
+  // ── Rate limit ───────────────────────────────────────────────────
   const ip = getClientIp(req)
   if (!rateLimit(ip)) {
     return new Response(
@@ -230,7 +250,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Parse and validate body
+  // ── Parse and validate body ──────────────────────────────────────
   let body: unknown
   try {
     body = await req.json()
@@ -251,52 +271,49 @@ export async function POST(req: NextRequest) {
 
   const { messages } = parsed.data
 
-  // ── Gemini path ────────────────────────────────────────────────────
-  if (geminiReady) {
-    try {
-      // Check if latest user message contains an ENR number — auto-detect
-      const latestUserMsg = [...messages].reverse().find((m) => m.role === "user")
-      const autoEnr = latestUserMsg?.content.match(ENR_REGEX)?.[0]?.toUpperCase()
-
-      // Build Gemini Content[] history — send the full conversation
-      const contents: Content[] = messages.map((m) => ({
-        role:  m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }))
-
-      // If we detected an ENR in the latest message, we can let the model
-      // discover it naturally through function calling — no pre-injection needed.
-      // The model will call get_enrollment_status automatically.
-      void autoEnr // suppress unused warning — model handles it via tools
-
-      const systemInstruction = buildSystemInstruction()
-      const config            = buildConfig(systemInstruction)
-
-      const stream = await streamGeminiResponse(contents, config, executeTool)
-
-      return new Response(stream, {
-        headers: {
-          "Content-Type":  "text/event-stream",
-          "Cache-Control": "no-cache",
-          "Connection":    "keep-alive",
-        },
-      })
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Unknown error"
-      console.error("[/api/chat] Gemini error, falling back:", msg)
-      // Fall through to keyword fallback
-    }
+  // ── Keyword fallback when Gemini is not configured ───────────────
+  if (!geminiReady) {
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
+    return new Response(keywordFallbackStream(lastUserMessage), { headers: SSE_HEADERS })
   }
 
-  // ── Keyword fallback path ──────────────────────────────────────────
-  const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
-  const fallbackStream  = keywordFallbackStream(lastUserMessage)
+  // ── Classify the message ─────────────────────────────────────────
+  const route = await classifyMessage(messages)
 
-  return new Response(fallbackStream, {
-    headers: {
-      "Content-Type":  "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Connection":    "keep-alive",
-    },
-  })
+  // TEMPORARY — remove after verifying routes in the terminal
+  console.log(`[chat] route → ${route}`)
+
+  // ── off_topic: return fixed reply without calling the main model ──
+  if (route === "off_topic") {
+    return new Response(offTopicStream(), { headers: SSE_HEADERS })
+  }
+
+  // ── Build Gemini config based on route ───────────────────────────
+  try {
+    const systemInstruction = buildSystemInstruction()
+    const baseConfig        = buildConfig(systemInstruction)
+
+    // knowledge: no tools — the model must answer from the system instruction only
+    // live_data: full tools — the model can call get_enrollment_status etc.
+    const config: GenerateContentConfig =
+      route === "knowledge"
+        ? { ...baseConfig, tools: undefined }
+        : { ...baseConfig, tools: GEMINI_TOOLS }
+
+    const contents: Content[] = messages.map((m) => ({
+      role:  m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }))
+
+    const stream = await streamGeminiResponse(contents, config, executeTool)
+
+    return new Response(stream, { headers: SSE_HEADERS })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Unknown error"
+    console.error("[/api/chat] Gemini error, falling back to keyword matcher:", msg)
+
+    // Fall back to keyword matcher rather than returning an error to the browser
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content ?? ""
+    return new Response(keywordFallbackStream(lastUserMessage), { headers: SSE_HEADERS })
+  }
 }

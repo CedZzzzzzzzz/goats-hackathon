@@ -2,9 +2,16 @@
 
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { createClient } from "@supabase/supabase-js"
 import type { Subject } from "@/types"
 import { SubjectPicker } from "@/components/SubjectPicker"
 import { PROGRAMS, type Program } from "@/lib/schemas"
+
+// Client-side Supabase instance — only used to read the session token
+const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+)
 
 type StudentType = "regular" | "irregular"
 type YearLevel   = "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
@@ -74,12 +81,20 @@ function EnrollPageInner() {
     if (!validate()) return
     setLoading(true)
     try {
+      // Get the current session token to send as Authorization header
+      const { data: sessionData } = await supabaseClient.auth.getSession()
+      const token = sessionData.session?.access_token
+
       const body: Record<string, unknown> = { ...form }
       if (form.student_type === "irregular") body.subject_codes = subjectCodes
+
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) headers["Authorization"] = `Bearer ${token}`
+
       const res  = await fetch("/api/enrollments", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
+        method: "POST",
+        headers,
+        body:   JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) { setErrors({ form: data.error ?? "Enrollment failed." }); return }
