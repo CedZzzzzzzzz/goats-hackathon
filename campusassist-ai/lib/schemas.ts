@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-// ── Chat ──────────────────────────────────────────────────────────────
+// ── Chat ─────────────────────────────────────────────────────────────
 export const ChatRequestSchema = z.object({
   message: z.string().min(1).max(500)
 })
@@ -30,7 +30,7 @@ export const UpdateEnrollmentSchema = z.object({
   status: z.enum(["confirmed", "rejected"])
 })
 
-// ── Inferred types ─────────────────────────────────────────────────────
+// ── Inferred types ────────────────────────────────────────────────────
 export type ChatRequest        = z.infer<typeof ChatRequestSchema>
 export type AIResponse         = z.infer<typeof AIResponseSchema>
 export type EnrollmentRequest  = z.infer<typeof EnrollmentSchema>

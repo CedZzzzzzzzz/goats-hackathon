@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Enrollment not found" }, { status: 404 })
   }
 
-  // Fetch subjects for this enrollment (column rename: subject_code→code, subject_name→name)
+  // Fetch subjects for this enrollment
   const { data: subjects, error: subjError } = await supabase
     .from("enrollment_subjects")
     .select("subject_code, subject_name, units")
@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Failed to fetch enrollment subjects" }, { status: 500 })
   }
 
-  const mappedSubjects = (subjects ?? []).map(s => ({
+  const mappedSubjects = ((subjects ?? []) as { subject_code: string; subject_name: string; units: number }[]).map(s => ({
     code:  s.subject_code,
     name:  s.subject_name,
     units: s.units

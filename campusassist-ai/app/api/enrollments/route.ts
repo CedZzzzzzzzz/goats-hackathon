@@ -96,13 +96,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Failed to load curriculum for this year level" }, { status: 500 })
     }
 
-    resolvedSubjects = curricula.map(c => ({
+    resolvedSubjects = curricula.map((c: { subject_code: string; subject_name: string; units: number }) => ({
       code:  c.subject_code,
       name:  c.subject_name,
       units: c.units
     }))
   } else {
-    // Verify each subject_code exists in the subjects table (gap #2 fix)
+    // Verify each subject_code exists in the subjects table
     const { data: subjects, error: subjErr } = await supabase
       .from("subjects")
       .select("code, name, units")
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "One or more selected subjects are invalid" }, { status: 400 })
     }
 
-    resolvedSubjects = subjects.map(s => ({
+    resolvedSubjects = (subjects as { code: string; name: string; units: number }[]).map(s => ({
       code:  s.code,
       name:  s.name,
       units: s.units
