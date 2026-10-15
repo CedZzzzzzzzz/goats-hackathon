@@ -7,6 +7,7 @@ import { SubjectPicker } from "@/components/SubjectPicker"
 
 type StudentType = "regular" | "irregular"
 type YearLevel   = "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
+type Program     = "BSIT" | "BSCPE" | "BSCS"
 
 interface FormState {
   full_name:    string
@@ -17,6 +18,7 @@ interface FormState {
 }
 
 const YEAR_LEVELS: YearLevel[] = ["1st Year", "2nd Year", "3rd Year", "4th Year"]
+const PROGRAMS:    Program[]   = ["BSIT", "BSCPE", "BSCS"]
 
 export default function EnrollPage() {
   const router = useRouter()
@@ -26,7 +28,7 @@ export default function EnrollPage() {
     student_id:   "",
     student_type: "regular",
     year_level:   "1st Year",
-    program:      "BSIT",
+    program:      "BSIT" as Program,
   })
   const [subjectCodes, setSubjectCodes] = useState<string[]>([])
   const [subjects,     setSubjects]     = useState<Subject[]>([])
@@ -36,12 +38,13 @@ export default function EnrollPage() {
 
   const [subjectsError, setSubjectsError] = useState<string | null>(null)
 
-  // Load subjects when switching to irregular
+  // Load subjects when switching to irregular (or when program changes while irregular)
   useEffect(() => {
     if (form.student_type !== "irregular") return
     setSubjectsLoading(true)
     setSubjectsError(null)
-    fetch("/api/subjects")
+    setSubjectCodes([])
+    fetch(`/api/subjects?program=${encodeURIComponent(form.program)}`)
       .then(r => {
         if (!r.ok) throw new Error("Failed to load subjects")
         return r.json()
@@ -49,7 +52,7 @@ export default function EnrollPage() {
       .then(data => setSubjects(Array.isArray(data) ? data : []))
       .catch(() => setSubjectsError("Could not load subjects. Please refresh and try again."))
       .finally(() => setSubjectsLoading(false))
-  }, [form.student_type])
+  }, [form.student_type, form.program])
 
   function validate(): boolean {
     const e: Record<string, string> = {}
@@ -91,7 +94,7 @@ export default function EnrollPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Enrollment Form</h1>
         <p className="text-sm text-gray-500 mt-1">
-          BSIT · AY 2025–2026 · 1st Semester
+          {form.program} · AY 2025–2026 · 1st Semester
         </p>
       </div>
 
@@ -135,11 +138,13 @@ export default function EnrollPage() {
         {/* Program */}
         <div className="space-y-1">
           <label className="text-sm font-medium text-gray-700">Program</label>
-          <input
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-            value="BSIT"
-            readOnly
-          />
+          <select
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-300"
+            value={form.program}
+            onChange={e => setForm(f => ({ ...f, program: e.target.value as Program }))}
+          >
+            {PROGRAMS.map(p => <option key={p}>{p}</option>)}
+          </select>
         </div>
 
         {/* Student type */}
