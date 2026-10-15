@@ -16,7 +16,7 @@
 - No real authentication — a demo role-switch toggle switches between student and staff views
 - All data is fake; this is not a production system
 - One workflow done well is the goal
-
+- A feature that was changed should update the documentation of the files that is related to it.
 ---
 
 ## Tech Stack
@@ -157,8 +157,8 @@ Commit after every working unit — not at the end of the hackathon. If the app 
 ### Environment variables (`.env.local`)
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
 Never commit `.env.local`. It is already in `.gitignore` by default.
