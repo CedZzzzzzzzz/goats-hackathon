@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Inbox,
+  BarChart2,
   GraduationCap,
   Menu,
   X,
@@ -27,9 +28,8 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [aiOpen,      setAiOpen]      = useState(true)
 
-  // AI panel shown on dashboard (/admin) and requests — hidden on reports
-  const showAiPanel   = pathname === "/admin" || pathname.startsWith("/admin/requests")
-  const isReportsPage = pathname.startsWith("/admin/reports")
+  // AI panel shown on dashboard (/admin) and requests only
+  const showAiPanel = pathname === "/admin" || pathname.startsWith("/admin/requests")
 
   return (
     <div className="min-h-screen bg-pupila-bg flex flex-col">
@@ -105,12 +105,14 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
 
           {/* Nav */}
           <nav className="flex flex-col gap-0.5 px-3.5 mt-3 flex-1">
+
+            {/* Dashboard */}
             <Link
               href="/admin"
               onClick={() => setSidebarOpen(false)}
               className={[
-                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors",
-                !isReportsPage
+                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors mb-0.5",
+                pathname === "/admin"
                   ? "bg-pupila-tint text-pupila-brand"
                   : "text-pupila-mute hover:bg-pupila-soft hover:text-pupila-ink",
               ].join(" ")}
@@ -119,12 +121,13 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
               Dashboard
             </Link>
 
+            {/* Requests — live link with pending count */}
             <Link
-              href="/admin"
+              href="/admin/requests"
               onClick={() => setSidebarOpen(false)}
               className={[
-                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors",
-                !isReportsPage
+                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors mb-0.5",
+                pathname.startsWith("/admin/requests")
                   ? "bg-pupila-tint text-pupila-brand"
                   : "text-pupila-mute hover:bg-pupila-soft hover:text-pupila-ink",
               ].join(" ")}
@@ -133,17 +136,15 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
               Requests
             </Link>
 
-            {/* Reports link — only rendered when on that page (Phase 4) */}
-            {isReportsPage && (
-              <Link
-                href="/admin/reports"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium bg-pupila-tint text-pupila-brand transition-colors"
-              >
-                <LayoutDashboard className="w-[18px] h-[18px] shrink-0" />
-                Reports
-              </Link>
-            )}
+            {/* Reports — Phase 4: disabled until page exists */}
+            <span
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium text-pupila-mute/40 cursor-default select-none mb-0.5"
+              aria-disabled="true"
+              title="Coming in Phase 4"
+            >
+              <BarChart2 className="w-[18px] h-[18px] shrink-0" />
+              Reports
+            </span>
           </nav>
 
           {/* Footer */}
@@ -154,7 +155,7 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
 
         {/* ── Content area ────────────────────────────────────────── */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-pupila-bg">
-          <div className="px-6 py-11 md:px-12">
+          <div className="px-4 py-7 md:px-[48px] md:py-[44px]">
             {children}
           </div>
         </main>

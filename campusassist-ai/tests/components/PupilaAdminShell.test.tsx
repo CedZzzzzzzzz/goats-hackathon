@@ -55,11 +55,18 @@ describe("PupilaAdminShell — /admin", () => {
     expect(screen.getByText("PUPILA")).toBeInTheDocument()
   })
 
-  it("renders at least two nav links pointing to /admin", () => {
+  it("renders exactly one nav link pointing to /admin (Dashboard)", () => {
     renderShell()
     const links = screen.getAllByRole("link")
     const adminLinks = links.filter(l => l.getAttribute("href") === "/admin")
-    expect(adminLinks.length).toBeGreaterThanOrEqual(2)
+    expect(adminLinks).toHaveLength(1)
+    expect(adminLinks[0]).toHaveTextContent("Dashboard")
+  })
+
+  it("renders Requests as a link pointing to /admin/requests", () => {
+    renderShell()
+    const requestsLink = screen.getByRole("link", { name: /requests/i })
+    expect(requestsLink).toHaveAttribute("href", "/admin/requests")
   })
 
   it("renders the RoleToggle in the header", () => {
@@ -109,9 +116,11 @@ describe("PupilaAdminShell — /admin", () => {
     expect(screen.getByLabelText("Toggle navigation")).toBeInTheDocument()
   })
 
-  it("does NOT render a Reports nav link on /admin", () => {
+  it("renders Reports as a disabled label, not a link", () => {
     renderShell()
-    expect(screen.queryByText("Reports")).not.toBeInTheDocument()
+    const reports = screen.getByText("Reports")
+    expect(reports).toBeInTheDocument()
+    expect(reports.closest("a")).toBeNull()
   })
 
   it("renders Powered by CampusAssist disclaimer in AI panel", () => {
@@ -130,8 +139,10 @@ describe("PupilaAdminShell — /admin/reports", () => {
     expect(screen.queryByTestId("chat-window")).not.toBeInTheDocument()
   })
 
-  it("renders a Reports nav link when on /admin/reports", () => {
+  it("renders Reports as a disabled label on /admin/reports", () => {
     renderShell(<div>Reports page</div>)
-    expect(screen.getByText("Reports")).toBeInTheDocument()
+    const reports = screen.getByText("Reports")
+    expect(reports).toBeInTheDocument()
+    expect(reports.closest("a")).toBeNull()
   })
 })

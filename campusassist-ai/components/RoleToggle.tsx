@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, ReactNode } from "react"
+import { useRouter } from "next/navigation"
 
 interface RoleContextValue {
   isStaff:    boolean
@@ -28,16 +29,25 @@ export function useRole() {
 
 export function RoleToggle() {
   const { isStaff, toggleRole } = useRole()
+  const router = useRouter()
+
+  function handleToggle() {
+    toggleRole()
+    if (isStaff) {
+      // switching to Student View — go to student portal
+      router.push("/")
+    } else {
+      // switching to Staff View — go to admin dashboard
+      router.push("/admin")
+    }
+  }
+
   return (
     <button
-      onClick={toggleRole}
-      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-        isStaff
-          ? "bg-indigo-600 text-white hover:bg-indigo-700"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-      }`}
+      onClick={handleToggle}
+      className="border border-pupila-line bg-pupila-card hover:bg-pupila-soft text-pupila-ink rounded-full px-4 py-1.5 text-sm font-medium transition-colors"
     >
-      {isStaff ? "👤 Staff View" : "🎓 Student View"}
+      {isStaff ? "Student View" : "Admin View"}
     </button>
   )
 }
