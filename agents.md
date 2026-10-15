@@ -157,8 +157,8 @@ Commit after every working unit — not at the end of the hackathon. If the app 
 ### Environment variables (`.env.local`)
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_URL=https://<your-project>.supabase.co
+SUPABASE_ANON_KEY=<your-anon-key>
 ```
 
 Never commit `.env.local`. It is already in `.gitignore` by default.
@@ -171,19 +171,22 @@ Never commit `.env.local`. It is already in `.gitignore` by default.
 campusassist-ai/
 │
 ├── app/                                    # Next.js App Router — all pages and API routes
-│   ├── layout.tsx                          # Root layout: header + RoleToggle + nav
-│   ├── page.tsx                            # Landing page — hero + "Start Enrollment" CTA
-│   ├── chat/
-│   │   └── page.tsx                        # AI chat interface
-│   ├── enroll/
-│   │   └── page.tsx                        # Enrollment form (student info + type + subject picker)
-│   ├── success/
-│   │   └── page.tsx                        # ENR number reveal + subject list
-│   ├── track/
-│   │   └── [enr]/
-│   │       └── page.tsx                    # Status tracking by enrollment number
+│   ├── layout.tsx                          # Root layout: RoleProvider only — no visual chrome
+│   ├── (student)/                          # Route group: student nav header + content wrapper
+│   │   ├── layout.tsx                      # Student header (CampusAssist AI + Enroll/Ask AI/Admin + RoleToggle)
+│   │   ├── page.tsx                        # Landing page — hero + "Start Enrollment" CTA
+│   │   ├── chat/
+│   │   │   └── page.tsx                    # AI chat interface
+│   │   ├── enroll/
+│   │   │   └── page.tsx                    # Enrollment form (student info + type + subject picker)
+│   │   ├── success/
+│   │   │   └── page.tsx                    # ENR number reveal + subject list
+│   │   └── track/
+│   │       └── [enr]/
+│   │           └── page.tsx                # Status tracking by enrollment number
 │   ├── admin/
-│   │   └── page.tsx                        # Admin dashboard — list + confirm/reject
+│   │   ├── layout.tsx                      # Admin layout: renders PupilaAdminShell
+│   │   └── page.tsx                        # PUPILA dashboard — enrollment list + confirm/reject
 │   └── api/
 │       ├── chat/
 │       │   └── route.ts                    # POST /api/chat
@@ -202,6 +205,7 @@ campusassist-ai/
 │   ├── EnrollmentNumberReveal.tsx          # Animated ENR number on success page
 │   ├── StatusTimeline.tsx                  # Status step timeline on tracking page
 │   ├── AdminTable.tsx                      # Enrollments table with confirm/reject actions
+│   ├── PupilaAdminShell.tsx                # PUPILA admin shell: header, sidebar, AI panel
 │   └── RoleToggle.tsx                      # Header toggle: Student view ↔ Staff view
 │
 ├── lib/
@@ -226,16 +230,19 @@ campusassist-ai/
 │   │   ├── enrollments.test.ts             # POST /api/enrollments · GET /api/enrollments
 │   │   └── enrollments-enr.test.ts         # GET /api/enrollments/[enr] · PATCH /api/enrollments/[enr]
 │   └── components/
+│       ├── AdminPage.test.tsx              # Admin page not-staff view-switch tests
 │       ├── ChatWindow.test.tsx
 │       ├── ChecklistCard.test.tsx
+│       ├── PupilaAdminShell.test.tsx       # Shell layout, nav, and AI panel tests
 │       ├── SubjectPicker.test.tsx
 │       └── StatusTimeline.test.tsx
 │
-├── vitest.config.ts                        # Vitest configuration
+├── vitest.config.mjs                       # Vitest configuration (actual filename)
 ├── .env.local                              # Secret env vars — never commit
-├── agents.md                               # ← this file
-└── enrollment-plan.md                      # Product plan, timeline, demo script
+└── README.md                               # App setup notes
 ```
+
+`agents.md` and `enrollment-plan.md` live at the repository root, one level above `campusassist-ai/`.
 
 ---
 
@@ -422,8 +429,8 @@ alter table curricula            disable row level security;
 ```ts
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl  = process.env.SUPABASE_URL!
+const supabaseKey  = process.env.SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 ```
@@ -644,9 +651,9 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 ```json
 [
   {
-    "enr_number":   "ENR-2025-0001",
+    "enr_number":   "ENR-00001-MN-0",
     "full_name":    "Alex Rivera",
-    "student_id":  "S10001",
+    "student_id":  "2024-10001",
     "student_type": "regular",
     "year_level":   "2nd Year",
     "program":      "BSIT",
@@ -706,7 +713,7 @@ Insert the row first (Supabase returns the `id`), then update `enr_number` using
 
 ## Demo Auth Pattern
 
-No real auth. A `RoleToggle` component in the header sets a context value `role: "student" | "staff"`. All admin API calls from the frontend attach:
+No real auth. `RoleProvider` in the root layout stores an `isStaff` boolean. `RoleToggle` appears in the student and admin headers and changes that demo role; it does not navigate between routes. The `/admin` page shows an access message and a link back to `/` when `isStaff` is false. Admin API calls from the frontend attach:
 
 ```ts
 headers: { "x-demo-role": "staff" }
@@ -759,7 +766,7 @@ The matcher in `lib/ai.ts` iterates entries and returns the first whose `keyword
 | `EnrollmentNumberReveal` | `/success` | URL search param `?enr=` | Animates on mount |
 | `StatusTimeline` | `/track/[enr]` | `GET /api/enrollments/[enr]` | Highlights current step; handles confirmed/rejected branch |
 | `AdminTable` | `/admin` | `GET /api/enrollments` | Confirm/Reject buttons; expandable row shows subject list |
-| `RoleToggle` | `layout.tsx` header | React context | Switches student ↔ staff view; attaches `x-demo-role: staff` on admin calls |
+| `RoleToggle` | Student and admin headers | React context | Changes demo `isStaff` state; `/admin` supplies the staff API header and gates its page content |
 
 ---
 
@@ -978,10 +985,9 @@ Bob will write tests that cover:
 
 #### `tests/lib/utils.test.ts` — utilities
 Bob will write tests that cover:
-- `generateEnrNumber(1)` returns `"ENR-{currentYear}-0001"`
-- `generateEnrNumber(42)` returns `"ENR-{currentYear}-0042"`
-- `generateEnrNumber(9999)` returns `"ENR-{currentYear}-9999"`
-- IDs above 9999 are not zero-padded (they render as-is)
+- `generateEnrNumber(1, "regular")` returns `"ENR-00001-MN-0"`
+- `generateEnrNumber(42, "irregular")` returns `"ENR-00042-MN-1"`
+- IDs above 99999 are not truncated
 
 #### `tests/api/chat.test.ts` — chat route
 Bob will write tests that cover:
@@ -1005,12 +1011,12 @@ Bob will write tests that cover:
 
 #### `tests/api/enrollments-enr.test.ts` — single enrollment
 Bob will write tests that cover:
-- `GET /api/enrollments/ENR-2025-0001` returns `200` with correct shape including `subjects[]`
-- `GET /api/enrollments/ENR-9999-9999` returns `404`
-- `PATCH /api/enrollments/ENR-2025-0002` with `{ status: "confirmed" }` + staff header returns `200`
-- `PATCH /api/enrollments/ENR-2025-0002` with `{ status: "rejected" }` + staff header returns `200`
-- `PATCH /api/enrollments/ENR-2025-0002` without staff header returns `403`
-- `PATCH /api/enrollments/ENR-2025-0002` with invalid status returns `400`
+- `GET /api/enrollments/ENR-00001-MN-0` returns `200` with correct shape including `subjects[]`
+- `GET /api/enrollments/ENR-99999-MN-1` returns `404`
+- `PATCH /api/enrollments/ENR-00002-MN-1` with `{ status: "confirmed" }` + staff header returns `200`
+- `PATCH /api/enrollments/ENR-00002-MN-1` with `{ status: "rejected" }` + staff header returns `200`
+- `PATCH /api/enrollments/ENR-00002-MN-1` without staff header returns `403`
+- `PATCH /api/enrollments/ENR-00002-MN-1` with invalid status returns `400`
 
 #### `tests/components/ChatWindow.test.tsx` — chat UI
 Bob will write tests that cover:
@@ -1157,6 +1163,102 @@ Before starting the clock:
 - [ ] Both developers have read `enrollment-plan.md` and `agents.md`
 - [ ] Demo laptop decided — deploy to Vercel, demo from URL not localhost
 - [ ] shadcn/ui component list agreed: Button, Input, Select, Checkbox, Badge, Table, Card, Skeleton, Toast
+
+---
+
+## Admin Experience — PUPILA (feat/admin-v2)
+
+> Status: **Phase 0 safe branch/base verified · Phase 1 route isolation and shell implemented, final verification pending · Phases 2–5 not started**. The branch contains one Phase 1 commit and uncommitted follow-up fixes; no separate Phase 0 artifact or completed visual check has been verified here.
+
+### What is implemented (Phase 0–1)
+
+The admin shell lives exclusively under `/admin`. It uses **PUPILA branding** — distinct from the student-side CampusAssist branding. Student page files were moved into the `(student)` route group without changing their public URLs or enrollment workflow; API contracts were not changed by this admin branch.
+
+#### Route layout isolation
+
+```
+app/layout.tsx              → RoleProvider only (no header, no sidebar)
+app/(student)/layout.tsx    → Student nav: CampusAssist AI header + Enroll/Ask AI links + RoleToggle
+app/admin/layout.tsx        → Renders PupilaAdminShell (PUPILA header + sidebar + AI panel)
+```
+
+The `(student)` route group is a Next.js App Router convention: the group name is stripped from URLs. Student URLs remain `/`, `/enroll`, `/chat`, `/success`, and `/track/[enr]` — unchanged.
+
+#### PupilaAdminShell (`components/PupilaAdminShell.tsx`)
+
+- **Header (64px):** PUPILA brand mark (red square + cap icon) + "PUPILA" wordmark, `RoleToggle`, AI panel toggle (xl only), avatar icon
+- **Sidebar (232px):** Semester context line, nav items (see below), "Enrollment Portal" footer
+- **Content area:** `pupila-bg` background, responsive padding
+- **Right AI panel (340px):** "PUPILA AI Assistant" header, `ChatWindow`, disclaimer. Visible on `/admin` only; hidden below `xl` breakpoint and on future `/admin/reports`
+
+#### Sidebar nav items (Phase 1)
+
+| Label | Element | Destination | Active when |
+|---|---|---|---|
+| Dashboard | `<Link>` | `/admin` | `pathname === "/admin"` |
+| Requests | `<span aria-disabled>` | None (Phase 2) | Never (disabled label) |
+| Reports | `<Link>` (conditional in shell) | `/admin/reports` | Would render only on that route; the page does not exist yet |
+
+Requests is intentionally a disabled `<span>`, not a link, until Phase 2 adds the view. Schedule from the prototype has no backend and does not appear in nav.
+
+#### Demo view-switch behaviour
+
+The `RoleToggle` button (in the PUPILA header) switches `isStaff` in `RoleContext`. Behaviour:
+
+| State | On `/admin` |
+|---|---|
+| `isStaff = true` | Full enrollment dashboard renders |
+| `isStaff = false` | Lock screen with "← Back to student portal" link to `/` |
+
+Selecting "Student View" from `/admin` currently changes the role but **does not navigate**. The admin page then displays the lock screen with a separate link to `/`. From a student page, the toggle changes the role but also does not navigate; the user must follow the Admin link to `/admin`. This is an open Phase 1 UX correction, not a completed direct view-switch journey.
+
+#### PUPILA colour tokens (`tailwind.config.ts`)
+
+```ts
+"pupila-bg":        "#fbf8f5",
+"pupila-card":      "#fffefd",
+"pupila-ink":       "#2b1716",
+"pupila-mute":      "#74635e",
+"pupila-line":      "#eadfd8",
+"pupila-brand":     "#971b1f",
+"pupila-tint":      "#f9e9e5",
+"pupila-soft":      "#f6eee8",
+"pupila-gold":      "#f5b400",
+"pupila-gold-soft": "#fff2c7",
+"pupila-green":     "#1f8a5b",
+```
+
+These are named in the `pupila-*` namespace and currently used by the admin shell and access state. The existing admin dashboard/table and chat widget still use their original styling.
+
+### What is NOT yet implemented
+
+| Feature | Phase | Notes |
+|---|---|---|
+| Dashboard stat cards (real data, PUPILA visual) | Phase 2 | Current admin page uses the old base design |
+| Requests view (two-column list + detail panel) | Phase 2 | AdminTable is functional; PUPILA reskin pending |
+| Confirm/Reject with inline error + state-machine guard | Phase 3 | PATCH API works; alert() replacement and 409 guard pending |
+| Reports page (`/admin/reports`) | Phase 4 | No page exists yet; nav link is conditional |
+| CSV export | Phase 4 | Native Blob only; no CDN scripts |
+| Schedule view | Deferred | No schedules table, no backend |
+| Rejection reason field | Deferred | No DB column; not in schema |
+| "Verify with AI" | Never | Requires external LLM API — violates project constraints |
+
+### Phase 1 exit checks still required
+
+- Verify the role-switch journey so "Student View" from `/admin` reaches the student side directly, or explicitly approve the current two-click lock-screen behavior.
+- Run the focused admin tests, TypeScript check, lint, and desktop/mobile route checks after the uncommitted fixes are finalized.
+- Keep student/login teammate changes separate; coordinate edits to shared layouts or `RoleToggle` before merging.
+
+### Test files (admin)
+
+| File | Coverage |
+|---|---|
+| `tests/components/PupilaAdminShell.test.tsx` | Shell branding, nav links, AI panel, hamburger, sidebar footer |
+| `tests/components/AdminPage.test.tsx` | Not-staff lock screen, back-to-student link, table not shown |
+
+### Source-of-truth reminder
+
+For implementation details, check the current code before following historical examples in this document. In particular, `lib/utils.ts` defines the ENR format, `lib/schemas.ts` validates student IDs, and `lib/supabase.ts` defines the server-only environment variable names.
 
 ---
 
