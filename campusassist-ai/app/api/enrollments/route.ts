@@ -6,15 +6,27 @@ import { rateLimit, getClientIp } from "@/lib/rate-limit"
 
 // ── GET /api/enrollments — admin list ─────────────────────────────────
 
+const VALID_STATUSES = ["pending", "confirmed", "rejected"] as const
+
 export async function GET(req: NextRequest) {
   if (req.headers.get("x-demo-role") !== "staff") {
     return Response.json({ error: "Staff access required" }, { status: 403 })
   }
 
-  const { data, error } = await supabase
+  const statusParam = req.nextUrl.searchParams.get("status")
+  const validStatus = VALID_STATUSES.includes(statusParam as typeof VALID_STATUSES[number])
+    ? (statusParam as typeof VALID_STATUSES[number])
+    : null
+
+  let query = supabase
     .from("enrollments")
     .select("enr_number, full_name, student_id, student_type, year_level, program, status, created_at")
-    .order("created_at", { ascending: false })
+
+  if (validStatus) {
+    query = query.eq("status", validStatus)
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false })
 
   if (error) {
     return Response.json({ error: "Failed to fetch enrollments" }, { status: 500 })
