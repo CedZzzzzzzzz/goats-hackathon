@@ -6,12 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Generates an ENR number from a numeric row id.
- * Format: ENR-{YYYY}-{4-digit zero-padded sequence}
- * Example: ENR-2025-0042
+ * Generates an enrollment number from a numeric row id and student type.
+ * Format: ENR-{5-digit zero-padded sequence}-MN-{type}
+ *   type: 0 = regular, 1 = irregular
+ * Example: ENR-00042-MN-0  (regular)
+ *          ENR-00042-MN-1  (irregular)
  */
-export function generateEnrNumber(id: number): string {
-  const year = new Date().getFullYear()
-  const seq  = String(id).padStart(4, "0")
-  return `ENR-${year}-${seq}`
+export function generateEnrNumber(id: number, studentType: "regular" | "irregular"): string {
+  const seq  = String(id).padStart(5, "0")
+  const flag = studentType === "regular" ? "0" : "1"
+  return `ENR-${seq}-MN-${flag}`
 }

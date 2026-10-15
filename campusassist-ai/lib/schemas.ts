@@ -15,7 +15,11 @@ export const AIResponseSchema = z.object({
 // ── Enrollment submission ─────────────────────────────────────────────
 export const EnrollmentSchema = z.object({
   full_name:     z.string().min(2).max(100),
-  student_id:    z.string().min(3).max(20),
+  // Format: YYYY-NNNNN (4-digit year, hyphen, exactly 5 digits) — e.g. 2024-01092
+  student_id:    z.string().regex(
+    /^\d{4}-\d{5}$/,
+    "Student ID must be in the format YYYY-NNNNN (e.g. 2024-01092)"
+  ),
   student_type:  z.enum(["regular", "irregular"]),
   year_level:    z.enum(["1st Year", "2nd Year", "3rd Year", "4th Year"]),
   program:       z.string().min(2).max(50),
