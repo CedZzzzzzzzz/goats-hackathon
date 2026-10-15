@@ -1,0 +1,85 @@
+[
+  {
+    "id": "enroll-regular",
+    "keywords": ["regular", "regular student", "how to enroll", "enroll regular", "enrollment regular"],
+    "answer": "Regular students are auto-assigned the prescribed curriculum for their year level. Simply fill out the enrollment form with your name, student ID, year level, and select 'Regular' as your student type. Your subjects will be assigned automatically and your enrollment will be confirmed immediately.",
+    "source": "Regular Student Enrollment",
+    "type": "checklist",
+    "items": [
+      "Fill out the enrollment form",
+      "Enter your full name and student ID",
+      "Select your year level and program (BSIT)",
+      "Choose 'Regular' as your student type",
+      "Submit — subjects are auto-assigned and enrollment is confirmed"
+    ]
+  },
+  {
+    "id": "enroll-irregular",
+    "keywords": ["irregular", "irregular student", "back subject", "shifted", "custom load", "enroll irregular"],
+    "answer": "Irregular students must manually select subjects from the available pool and submit for staff approval. Your enrollment will start as 'Pending' until a staff member confirms it.",
+    "source": "Irregular Student Enrollment",
+    "type": "checklist",
+    "items": [
+      "Fill out the enrollment form",
+      "Select 'Irregular' as your student type",
+      "Choose your subjects from the available subject list",
+      "Submit — enrollment will be marked as Pending",
+      "Wait for a staff member to confirm or reject your enrollment",
+      "Track your status at /track/[your ENR number]"
+    ]
+  },
+  {
+    "id": "requirements",
+    "keywords": ["requirements", "what do i need", "prepare", "documents", "needed"],
+    "answer": "To enroll, you will need your full name, your student ID number, and your year level. No document uploads are required for this demo system.",
+    "source": "Enrollment Requirements",
+    "type": "checklist",
+    "items": [
+      "Full name (as registered)",
+      "Student ID number",
+      "Year level (1st, 2nd, 3rd, or 4th Year)",
+      "Program (BSIT)",
+      "For irregular students: list of subjects you plan to take"
+    ]
+  },
+  {
+    "id": "status",
+    "keywords": ["status", "track", "check enrollment", "pending", "confirmed", "rejected", "where is my enrollment"],
+    "answer": "You can track your enrollment status by visiting /track/[your ENR number]. Your ENR number was displayed on the success page after you submitted your enrollment.",
+    "source": "Enrollment Tracking",
+    "type": "info",
+    "items": null
+  },
+  {
+    "id": "enr-number",
+    "keywords": ["enr", "enrollment number", "reference number", "enr number", "what is enr"],
+    "answer": "Your ENR number is a unique reference code assigned when you submit your enrollment. It follows the format ENR-YYYY-XXXX (e.g. ENR-2025-0042). Use it to track your enrollment status.",
+    "source": "Enrollment Number",
+    "type": "info",
+    "items": null
+  },
+  {
+    "id": "approval",
+    "keywords": ["approval", "how long", "when", "staff", "confirm", "approve", "review"],
+    "answer": "Irregular enrollment submissions are reviewed by staff. There is no fixed turnaround time in this demo system, but once a staff member logs in and confirms or rejects your enrollment, your tracking page will update immediately.",
+    "source": "Irregular Enrollment Approval",
+    "type": "info",
+    "items": null
+  },
+  {
+    "id": "subjects",
+    "keywords": ["subjects", "what subjects", "available subjects", "subject list", "courses"],
+    "answer": "Regular students are auto-assigned subjects based on their year level and the BSIT curriculum. Irregular students may choose from the full available subject pool shown in the enrollment form.",
+    "source": "Subject Assignment",
+    "type": "info",
+    "items": null
+  },
+  {
+    "id": "program",
+    "keywords": ["program", "bsit", "course", "degree", "bachelor"],
+    "answer": "CampusAssist AI currently supports the Bachelor of Science in Information Technology (BSIT) program for Academic Year 2025–2026, 1st Semester.",
+    "source": "Program Information",
+    "type": "info",
+    "items": null
+  }
+]
