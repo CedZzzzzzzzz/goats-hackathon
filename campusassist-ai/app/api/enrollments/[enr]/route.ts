@@ -1,17 +1,23 @@
 import { NextRequest } from "next/server"
 import { UpdateEnrollmentSchema } from "@/lib/schemas"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabaseAdmin, supabaseReady } from "@/lib/supabase"
 
 interface RouteParams {
   params: Promise<{ enr: string }>
 }
 
 // ── GET /api/enrollments/[enr] — enrollment detail ────────────────────
-
 export async function GET(_req: NextRequest, { params }: RouteParams) {
   const { enr } = await params
 
-  // Fetch enrollment row
+  if (!supabaseReady) {
+    // Import the shared in-memory store dynamically to avoid circular imports
+    const { getMemEnrollment } = await import("@/lib/mem-store")
+    const record = getMemEnrollment(enr)
+    if (!record) return Response.json({ error: "Enrollment not found" }, { status: 404 })
+    return Response.json(record, { status: 200 })
+  }
+
   const { data: enrollment, error } = await supabase
     .from("enrollments")
     .select("id, enr_number, full_name, student_id, student_type, year_level, program, semester, academic_year, status, created_at, updated_at")
@@ -22,7 +28,6 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Enrollment not found" }, { status: 404 })
   }
 
-  // Fetch subjects for this enrollment
   const { data: subjects, error: subjError } = await supabase
     .from("enrollment_subjects")
     .select("subject_code, subject_name, units")
@@ -35,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
   const mappedSubjects = ((subjects ?? []) as { subject_code: string; subject_name: string; units: number }[]).map(s => ({
     code:  s.subject_code,
     name:  s.subject_name,
-    units: s.units
+    units: s.units,
   }))
 
   return Response.json(
@@ -51,14 +56,13 @@ export async function GET(_req: NextRequest, { params }: RouteParams) {
       status:        enrollment.status,
       subjects:      mappedSubjects,
       created_at:    enrollment.created_at,
-      updated_at:    enrollment.updated_at
+      updated_at:    enrollment.updated_at,
     },
     { status: 200 }
   )
 }
 
 // ── PATCH /api/enrollments/[enr] — admin confirm / reject ─────────────
-
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const { enr } = await params
 
@@ -78,7 +82,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Invalid status value" }, { status: 400 })
   }
 
-  const { data: updated, error } = await supabase
+  if (!supabaseReady) {
+    const { patchMemEnrollment } = await import("@/lib/mem-store")
+    const updated = patchMemEnrollment(enr, parsed.data.status)
+    if (!updated) return Response.json({ error: "Enrollment not found" }, { status: 404 })
+    return Response.json(updated, { status: 200 })
+  }
+
+  const { data: updated, error } = await supabaseAdmin
     .from("enrollments")
     .update({ status: parsed.data.status })
     .eq("enr_number", enr)

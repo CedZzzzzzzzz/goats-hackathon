@@ -76,12 +76,19 @@ function SuccessContent() {
         </div>
       ) : null}
 
-      <div className="flex gap-3 justify-center">
+      <div className="flex gap-3 justify-center flex-wrap">
         <Link
           href={`/track/${encodeURIComponent(enrNumber)}`}
           className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
         >
           Track Status
+        </Link>
+        <Link
+          href={`/track?enr=${encodeURIComponent(enrNumber)}`}
+          className="text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+          style={{ background: "linear-gradient(135deg,#8B1A1A,#A31F1F)" }}
+        >
+          View my schedule
         </Link>
         <Link
           href="/enroll"

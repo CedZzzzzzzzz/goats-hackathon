@@ -27,17 +27,18 @@ export function useRole() {
 }
 
 export function RoleToggle() {
-  const { isStaff, toggleRole } = useRole()
   return (
     <button
-      onClick={toggleRole}
-      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-        isStaff
-          ? "bg-indigo-600 text-white hover:bg-indigo-700"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-      }`}
+      className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200"
+      style={{
+        color:           "#FFFFFF",
+        backgroundColor: "transparent",
+        border:          "2px solid #FFFFFF",
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(255,255,255,0.15)" }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent" }}
     >
-      {isStaff ? "👤 Staff View" : "🎓 Student View"}
+      LOG OUT
     </button>
   )
 }

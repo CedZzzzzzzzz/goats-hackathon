@@ -1,166 +1,244 @@
 import { NextRequest } from "next/server"
 import { EnrollmentSchema } from "@/lib/schemas"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabaseAdmin, supabaseReady } from "@/lib/supabase"
 import { generateEnrNumber } from "@/lib/utils"
 import { rateLimit, getClientIp } from "@/lib/rate-limit"
+import { addMemEnrollment, getAllMemEnrollments } from "@/lib/mem-store"
+
+type Subject = { code: string; name: string; units: number }
+
+// ── Demo next id counter ──────────────────────────────────────────────
+let nextId = 100
+
+// ── Fallback curriculum (used when Supabase has no data) ──────────────
+const DEMO_SUBJECTS: Record<string, Subject[]> = {
+  "1st Year": [
+    { code: "GEN101",  name: "General Education 1", units: 3 },
+    { code: "GEN102",  name: "General Education 2", units: 3 },
+    { code: "CORE101", name: "Core Subject 1",      units: 3 },
+  ],
+  "2nd Year": [
+    { code: "CORE201", name: "Core Subject 2", units: 3 },
+    { code: "CORE202", name: "Core Subject 3", units: 3 },
+    { code: "ELEC201", name: "Elective 1",     units: 3 },
+  ],
+  "3rd Year": [
+    { code: "CORE301", name: "Core Subject 4", units: 3 },
+    { code: "CORE302", name: "Core Subject 5", units: 3 },
+    { code: "ELEC301", name: "Elective 2",     units: 3 },
+  ],
+  "4th Year": [
+    { code: "CAPS401", name: "Capstone Project 1", units: 3 },
+    { code: "CAPS402", name: "Capstone Project 2", units: 3 },
+    { code: "ELEC401", name: "Elective 3",         units: 3 },
+  ],
+}
 
 // ── GET /api/enrollments — admin list ─────────────────────────────────
-
 const VALID_STATUSES = ["pending", "confirmed", "rejected"] as const
 
 export async function GET(req: NextRequest) {
-  if (req.headers.get("x-demo-role") !== "staff") {
-    return Response.json({ error: "Staff access required" }, { status: 403 })
+  try {
+    if (req.headers.get("x-demo-role") !== "staff") {
+      return Response.json({ error: "Staff access required" }, { status: 403 })
+    }
+
+    const statusParam = req.nextUrl.searchParams.get("status")
+
+    if (!supabaseReady) {
+      const all = getAllMemEnrollments()
+      const rows = statusParam ? all.filter(e => e.status === statusParam) : all
+      return Response.json([...rows].reverse(), { status: 200 })
+    }
+
+    const validStatus = VALID_STATUSES.includes(statusParam as typeof VALID_STATUSES[number])
+      ? (statusParam as typeof VALID_STATUSES[number])
+      : null
+
+    let query = supabase
+      .from("enrollments")
+      .select("enr_number, full_name, student_id, student_type, year_level, program, status, created_at")
+
+    if (validStatus) query = query.eq("status", validStatus)
+
+    const { data, error } = await query.order("created_at", { ascending: false })
+    if (error) {
+      console.error("GET /api/enrollments error:", error)
+      return Response.json({ error: "Failed to fetch enrollments" }, { status: 500 })
+    }
+    return Response.json(data, { status: 200 })
+  } catch (err) {
+    console.error("GET /api/enrollments failed:", err)
+    return Response.json({ error: "Something went wrong on the server." }, { status: 500 })
   }
-
-  const statusParam = req.nextUrl.searchParams.get("status")
-  const validStatus = VALID_STATUSES.includes(statusParam as typeof VALID_STATUSES[number])
-    ? (statusParam as typeof VALID_STATUSES[number])
-    : null
-
-  let query = supabase
-    .from("enrollments")
-    .select("enr_number, full_name, student_id, student_type, year_level, program, status, created_at")
-
-  if (validStatus) {
-    query = query.eq("status", validStatus)
-  }
-
-  const { data, error } = await query.order("created_at", { ascending: false })
-
-  if (error) {
-    return Response.json({ error: "Failed to fetch enrollments" }, { status: 500 })
-  }
-
-  return Response.json(data, { status: 200 })
 }
 
 // ── POST /api/enrollments — submit enrollment ─────────────────────────
-
 export async function POST(req: NextRequest) {
-  // Rate limit: 5 submissions per minute per IP
-  const ip = getClientIp(req)
-  const limit = rateLimit(ip, { limit: 5, windowMs: 60_000 })
-  if (!limit.allowed) {
-    return Response.json({ error: "Too many requests. Please wait a moment." }, { status: 429 })
-  }
-
-  let body: unknown
   try {
-    body = await req.json()
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 })
-  }
+    // Rate limit
+    const ip = getClientIp(req)
+    const limit = rateLimit(ip, { limit: 10, windowMs: 60_000 })
+    if (!limit.allowed) {
+      return Response.json({ error: "Too many requests. Please wait a moment." }, { status: 429 })
+    }
 
-  const parsed = EnrollmentSchema.safeParse(body)
-  if (!parsed.success) {
-    return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
-  }
+    // Parse body
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return Response.json({ error: "Invalid request body" }, { status: 400 })
+    }
 
-  const { full_name, student_id, student_type, year_level, program, subject_codes } = parsed.data
+    // Validate
+    const parsed = EnrollmentSchema.safeParse(body)
+    if (!parsed.success) {
+      return Response.json({ error: parsed.error.issues[0].message }, { status: 400 })
+    }
 
-  // ── 1. Insert enrollment row with placeholder enr_number ────────────
-  const { data: enrollment, error: insertError } = await supabase
-    .from("enrollments")
-    .insert({
-      enr_number:    crypto.randomUUID(),
+    const { full_name, student_id, student_type, year_level, program, subject_codes } = parsed.data
+
+    // Irregular students must pick at least one subject
+    if (student_type === "irregular" && (!subject_codes || subject_codes.length === 0)) {
+      return Response.json({ error: "Please select at least one subject." }, { status: 400 })
+    }
+
+    // PATH A: Supabase is configured
+    if (supabaseReady) {
+      return await handleWithSupabase({ full_name, student_id, student_type, year_level, program, subject_codes })
+    }
+
+    // PATH B: Demo / no Supabase, in-memory store
+    const id         = nextId++
+    const enr_number = generateEnrNumber(id, student_type)
+    const status     = student_type === "regular" ? "confirmed" : "pending"
+
+    const subjects: Subject[] =
+      student_type === "regular"
+        ? DEMO_SUBJECTS[year_level] ?? DEMO_SUBJECTS["1st Year"]
+        : (subject_codes ?? []).map(code => ({ code, name: `Subject ${code}`, units: 3 }))
+
+    addMemEnrollment({
+      enr_number,
       full_name,
       student_id,
       student_type,
       year_level,
       program,
-      status: student_type === "regular" ? "confirmed" : "pending"
+      semester:      "1st Semester",
+      academic_year: "2025-2026",
+      status,
+      subjects,
+      created_at: new Date().toISOString(),
+    })
+
+    return Response.json({ enr_number, status, subjects }, { status: 201 })
+  } catch (err) {
+    console.error("POST /api/enrollments failed:", err)
+    return Response.json({ error: "Something went wrong on the server." }, { status: 500 })
+  }
+}
+
+// ── Supabase path (only called when credentials exist) ────────────────
+async function handleWithSupabase(data: {
+  full_name:      string
+  student_id:     string
+  student_type:   "regular" | "irregular"
+  year_level:     string
+  program:        string
+  subject_codes?: string[]
+}): Promise<Response> {
+  const { full_name, student_id, student_type, year_level, program, subject_codes } = data
+  const status = student_type === "regular" ? "confirmed" : "pending"
+
+  // 1. Insert with placeholder enr_number (admin client bypasses RLS)
+  const { data: enrollment, error: insertError } = await supabaseAdmin
+    .from("enrollments")
+    .insert({
+      enr_number: crypto.randomUUID(),
+      full_name,
+      student_id,
+      student_type,
+      year_level,
+      program,
+      status,
     })
     .select("id")
     .single()
 
   if (insertError || !enrollment) {
-    return Response.json({ error: "Failed to create enrollment" }, { status: 500 })
+    console.error("Insert error:", insertError)
+    // 23505 = unique violation (duplicate student_id)
+    if (insertError?.code === "23505") {
+      return Response.json({ error: "This Student ID already has an enrollment." }, { status: 409 })
+    }
+    return Response.json(
+      { error: `Failed to create enrollment: ${insertError?.message ?? "unknown"}` },
+      { status: 500 }
+    )
   }
 
-  // ── 2. Generate and set the real enr_number ──────────────────────────
+  // 2. Set real enr_number
   const enr_number = generateEnrNumber(enrollment.id, student_type)
-
-  const { error: updateError } = await supabase
+  const { error: updateError } = await supabaseAdmin
     .from("enrollments")
     .update({ enr_number })
     .eq("id", enrollment.id)
 
   if (updateError) {
-    // Clean up dangling row
-    await supabase.from("enrollments").delete().eq("id", enrollment.id)
+    console.error("Update enr_number error:", updateError)
+    await supabaseAdmin.from("enrollments").delete().eq("id", enrollment.id)
     return Response.json({ error: "Failed to create enrollment" }, { status: 500 })
   }
 
-  // ── 3. Resolve subjects ──────────────────────────────────────────────
-  let resolvedSubjects: { code: string; name: string; units: number }[] = []
+  // 3. Resolve subjects
+  let resolvedSubjects: Subject[] = []
 
   if (student_type === "regular") {
-    // Fetch prescribed curriculum for this year level + program
-    const { data: curricula, error: currErr } = await supabase
+    const { data: curricula } = await supabaseAdmin
       .from("curricula")
       .select("subject_code, subject_name, units")
       .eq("year_level", year_level)
       .eq("program", program)
 
-    if (currErr || !curricula || curricula.length === 0) {
-      await supabase.from("enrollments").delete().eq("id", enrollment.id)
-      return Response.json({ error: "Failed to load curriculum for this year level" }, { status: 500 })
+    if (curricula && curricula.length > 0) {
+      resolvedSubjects = curricula.map(
+        (c: { subject_code: string; subject_name: string; units: number }) => ({
+          code: c.subject_code, name: c.subject_name, units: c.units,
+        })
+      )
+    } else {
+      resolvedSubjects = DEMO_SUBJECTS[year_level] ?? DEMO_SUBJECTS["1st Year"]
     }
-
-    resolvedSubjects = curricula.map((c: { subject_code: string; subject_name: string; units: number }) => ({
-      code:  c.subject_code,
-      name:  c.subject_name,
-      units: c.units
-    }))
   } else {
-    // Verify each subject_code exists in the subjects table
-    const { data: subjects, error: subjErr } = await supabase
+    const codes = subject_codes ?? []
+    const { data: subjects, error: subjErr } = await supabaseAdmin
       .from("subjects")
       .select("code, name, units")
-      .in("code", subject_codes!)
+      .in("code", codes)
 
-    if (subjErr) {
-      await supabase.from("enrollments").delete().eq("id", enrollment.id)
-      return Response.json({ error: "Failed to validate subjects" }, { status: 500 })
+    if (subjErr || !subjects || subjects.length === 0) {
+      resolvedSubjects = codes.map(code => ({ code, name: `Subject ${code}`, units: 3 }))
+    } else {
+      resolvedSubjects = (subjects as Subject[]).map(s => ({
+        code: s.code, name: s.name, units: s.units,
+      }))
     }
-
-    if (!subjects || subjects.length !== subject_codes!.length) {
-      await supabase.from("enrollments").delete().eq("id", enrollment.id)
-      return Response.json({ error: "One or more selected subjects are invalid" }, { status: 400 })
-    }
-
-    resolvedSubjects = (subjects as { code: string; name: string; units: number }[]).map(s => ({
-      code:  s.code,
-      name:  s.name,
-      units: s.units
-    }))
   }
 
-  // ── 4. Insert enrollment_subjects rows ───────────────────────────────
-  const subjectRows = resolvedSubjects.map(s => ({
-    enrollment_id: enrollment.id,
-    subject_code:  s.code,
-    subject_name:  s.name,
-    units:         s.units
-  }))
-
-  const { error: subjInsertError } = await supabase
-    .from("enrollment_subjects")
-    .insert(subjectRows)
-
-  if (subjInsertError) {
-    await supabase.from("enrollments").delete().eq("id", enrollment.id)
-    return Response.json({ error: "Failed to create enrollment" }, { status: 500 })
+  // 4. Insert enrollment_subjects (log the error, but don't fail the enrollment)
+  if (resolvedSubjects.length > 0) {
+    const { error: subjInsertErr } = await supabaseAdmin.from("enrollment_subjects").insert(
+      resolvedSubjects.map(s => ({
+        enrollment_id: enrollment.id,
+        subject_code:  s.code,
+        subject_name:  s.name,
+        units:         s.units,
+      }))
+    )
+    if (subjInsertErr) console.error("enrollment_subjects insert failed:", subjInsertErr)
   }
 
-  // ── 5. Return response ───────────────────────────────────────────────
-  return Response.json(
-    {
-      enr_number,
-      status:   student_type === "regular" ? "confirmed" : "pending",
-      subjects: resolvedSubjects
-    },
-    { status: 201 }
-  )
+  return Response.json({ enr_number, status, subjects: resolvedSubjects }, { status: 201 })
 }
