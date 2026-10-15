@@ -25,6 +25,18 @@ export interface Enrollment {
   updated_at:    string
 }
 
+// Summary shape returned by GET /api/enrollments (list) — no subjects[]
+export interface EnrollmentSummary {
+  enr_number:   string
+  full_name:    string
+  student_id:   string
+  student_type: StudentType
+  year_level:   string
+  program:      string
+  status:       EnrollmentStatus
+  created_at:   string
+}
+
 export interface AIResponse {
   answer: string
   source: string | null
