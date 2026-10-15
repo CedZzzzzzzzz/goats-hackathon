@@ -1,7 +1,7 @@
 # CampusAssist AI — Project Status
 
-> Last updated: 2025-07-15
-> Branch: `feat/enr-number-format-and-student-id-validation`
+> Last updated: 2026-10-16
+> Latest merged feature: `feat/auth` (pushed and merged)
 
 ---
 
@@ -14,7 +14,7 @@
 | `types/index.ts` — shared types incl. `EnrollmentSummary` | ✅ |
 | `lib/supabase.ts` — server-only client (`SUPABASE_URL` / `SUPABASE_ANON_KEY`) | ✅ |
 | `lib/utils.ts` — `generateEnrNumber(id, studentType)` + `cn()` | ✅ |
-| `lib/schemas.ts` — all 4 Zod schemas incl. `student_id` regex validation | ✅ |
+| `lib/schemas.ts` — enrollment/chat schemas plus `SignUpSchema` and `SignInSchema` | ✅ |
 | `lib/kb.json` — 8 KB entries with tuned keywords | ✅ |
 | Supabase tables created + seeded + RLS disabled | ✅ |
 
@@ -34,6 +34,8 @@
 | `app/api/enrollments/[enr]/route.ts` — `GET` detail + `PATCH` status | ✅ |
 
 ### Step 3 — Test Scripts
+Previously recorded results below; tests were not rerun for this documentation update. Auth-specific automated tests are still pending.
+
 | File | Tests | Status |
 |---|---|---|
 | `tests/lib/utils.test.ts` | 7 | ✅ |
@@ -63,6 +65,25 @@
 | `components/EnrollmentNumberReveal.tsx` — copy-to-clipboard included | ✅ |
 | `components/ChecklistCard.tsx` | ✅ |
 
+### Step 5 — Authentication (`feat/auth`, merged)
+| File / feature | Status |
+|---|---|
+| `app/auth/page.tsx` + `components/auth/AuthCard.tsx` — combined sign-up/sign-in page with sliding panel and responsive styling | ✅ |
+| `components/auth/SignUpForm.tsx` — Supabase sign-up with student details and password validation | ✅ |
+| `components/auth/SignInForm.tsx` — student ID lookup in `profiles`, password sign-in, redirect to `/enroll` | ✅ |
+| `components/auth/ForgotPasswordModal.tsx` — reset email request, `#a21c1b` background and gold buttons | ✅ |
+| `app/reset-password/page.tsx` — password recovery form with confirmation and Supabase password update | ✅ |
+| `components/auth/Field.tsx`, `Input.tsx`, `PasswordField.tsx` — shared form controls | ✅ |
+| `lib/studentId.ts` + `lib/validators.ts` — student ID formatting and client-side validation | ✅ |
+| `lib/supabase-browser.ts` — browser client for Supabase Auth | ✅ |
+| `auth-plan.md` + `docs/auth-implementation.md` — auth setup and implementation documentation | ✅ |
+
+### Auth Follow-up
+- Admin login and role-based redirects are not connected yet. `/auth` accepts student IDs and always redirects to `/enroll`; `/admin` still uses the Staff View demo toggle and API requests still use `x-demo-role`.
+- Align student ID formats: authentication uses `YYYY-NNNNN-MN-0/1`, while enrollment still accepts `YYYY-NNNNN`.
+- Add automated auth coverage and verify sign-up, sign-in, and email recovery against the configured Supabase project. Live database setup and email delivery were not verified in this status update.
+- Supabase profile, trigger, policy, and admin account setup instructions are in [docs/auth-implementation.md](docs/auth-implementation.md).
+
 ---
 
 ## 🔧 Bug Fixes Applied
@@ -83,7 +104,8 @@
 | Field | Format | Example |
 |---|---|---|
 | ENR number (system-generated) | `ENR-NNNNN-MN-0` (regular) / `ENR-NNNNN-MN-1` (irregular) | `ENR-00010-MN-0` |
-| Student ID (entered by student) | `YYYY-NNNNN` | `2024-01092` |
+| Student ID (enrollment form) | `YYYY-NNNNN` | `2024-01092` |
+| Student ID (auth forms) | `YYYY-NNNNN-MN-0` / `YYYY-NNNNN-MN-1` | `2024-01092-MN-0` |
 
 ---
 
@@ -162,7 +184,11 @@ Your `.env.local` must use these exact names:
 ```env
 SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_ANON_KEY=<your-anon-key>
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 ```
+
+The `NEXT_PUBLIC_` variables are used by the browser auth client; the existing variables remain in use by server API routes.
 
 ### Do Not Change
 - API response shapes — frontend components depend on the contracts in `agents.md`
@@ -184,3 +210,4 @@ pnpm test        # must show 54 passed before any merge to main
 | `feat/test-scripts` | Vitest setup + backend tests | ✅ Merged |
 | `feat/cors-and-filters` | CORS headers + status filter | ✅ Merged |
 | `feat/enr-number-format-and-student-id-validation` | ENR format, student_id validation, multi-program support | ✅ Merged |
+| `feat/auth` | Student sign-up/sign-in, password recovery, auth UI and Supabase setup documentation | ✅ Pushed and merged |
