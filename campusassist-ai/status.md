@@ -29,7 +29,8 @@
 |---|---|
 | `lib/rate-limit.ts` — in-memory per-IP rate limiter | ✅ |
 | `app/api/subjects/route.ts` — `GET /api/subjects` | ✅ |
-| `app/api/enrollments/route.ts` — `GET /api/enrollments` (staff) + `POST /api/enrollments` | ✅ |
+| `app/api/enrollments/route.ts` — `GET /api/enrollments` (staff, `?status=` filter) + `POST /api/enrollments` | ✅ |
+| `next.config.ts` — CORS headers for all `/api/*` routes (`Access-Control-Allow-Origin: *`) | ✅ |
 | `app/api/enrollments/[enr]/route.ts` — `GET` detail + `PATCH` status | ✅ |
 
 ### Step 3 — Test Scripts
@@ -42,7 +43,7 @@
 | `tests/api/subjects.test.ts` | 2 | ✅ |
 | `tests/api/enrollments.test.ts` | 7 | ✅ |
 | `tests/api/enrollments-enr.test.ts` | 6 | ✅ |
-| **Total** | **44 / 44 passing** | ✅ |
+| **Total** | **46 / 46 passing** | ✅ |
 
 ---
 
@@ -105,4 +106,5 @@ pnpm test        # must show 44 passed before any merge to main
 | `main` | Stable, deployable | — |
 | `feat/backend-foundation` | All backend files, API routes | ✅ Pushed |
 | `feat/test-scripts` | Vitest setup + 44 backend tests | ✅ Pushed |
+| `feat/cors-and-filters` | CORS headers + status filter | ✅ Pushed |
 | `feat/frontend-*` | Frontend pages + components | 🚧 In progress |

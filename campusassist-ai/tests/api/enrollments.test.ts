@@ -30,6 +30,7 @@ vi.mock("@/lib/supabase", () => {
           return {
             // GET list
             select: vi.fn().mockReturnThis(),
+            eq:     vi.fn().mockReturnThis(),
             order:  vi.fn().mockResolvedValue({ data: mockEnrollmentsList, error: null }),
             // INSERT
             insert: vi.fn(() => ({
@@ -92,8 +93,8 @@ function makeRequest(body: unknown, headers: Record<string, string> = {}) {
   })
 }
 
-function makeGetRequest(headers: Record<string, string> = {}) {
-  return new NextRequest("http://localhost/api/enrollments", {
+function makeGetRequest(headers: Record<string, string> = {}, url = "http://localhost/api/enrollments") {
+  return new NextRequest(url, {
     method: "GET",
     headers
   })
@@ -111,6 +112,26 @@ describe("GET /api/enrollments", () => {
 
   it("returns 200 with enrollments array when staff header is present", async () => {
     const res = await GET(makeGetRequest({ "x-demo-role": "staff" }))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(Array.isArray(json)).toBe(true)
+  })
+
+  it("returns 200 with filtered results when ?status=pending is provided", async () => {
+    const res = await GET(makeGetRequest(
+      { "x-demo-role": "staff" },
+      "http://localhost/api/enrollments?status=pending"
+    ))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+    expect(Array.isArray(json)).toBe(true)
+  })
+
+  it("returns 200 with all results when ?status=invalid is provided", async () => {
+    const res = await GET(makeGetRequest(
+      { "x-demo-role": "staff" },
+      "http://localhost/api/enrollments?status=invalid"
+    ))
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(Array.isArray(json)).toBe(true)
