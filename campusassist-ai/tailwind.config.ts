@@ -9,6 +9,13 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Landing page brand tokens
+        brand: {
+          gold:    "#F2A900",
+          crimson: "#A10F14",
+          dark:    "#6E0A0E",
+          navy:    "#14213D",
+        },
         // Student-side palette
         "campus-red":       "#951A1A",
         "campus-red-dark":  "#7A1515",
@@ -24,6 +31,9 @@ const config: Config = {
         "pupila-gold":      "#f5b400",
         "pupila-gold-soft": "#fff2c7",
         "pupila-green":     "#1f8a5b",
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
     },
   },
