@@ -3,15 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, CalendarDays, Settings, MessageCircle, GraduationCap, X } from "lucide-react"
-import { ChatWindow } from "@/components/ChatWindow"
+import { Home, CalendarDays, Settings, X } from "lucide-react"
 
 // ── Nav items config ───────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { href: "/",        icon: Home,          label: "Home"         },
-  { href: "/track",   icon: CalendarDays,  label: "Schedule"     },
-  { href: "/settings",icon: Settings,      label: "Settings"     },
-  { href: "/chat",    icon: MessageCircle, label: "AI Assistant" },
+  { href: "/",         icon: Home,         label: "Home"     },
+  { href: "/track",    icon: CalendarDays, label: "Schedule" },
+  { href: "/settings", icon: Settings,     label: "Settings" },
 ] as const
 
 // ── Sidebar content (shared between desktop sidebar and drawer) ────────
@@ -86,23 +84,21 @@ export function AppShell({
   header:   React.ReactNode
 }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [chatOpen,   setChatOpen]   = useState(false)
   const pathname                    = usePathname()
   const drawerRef                   = useRef<HTMLDivElement>(null)
 
   // Close drawer on route change
   useEffect(() => { setDrawerOpen(false) }, [pathname])
 
-  // Escape key closes drawer/chat
+  // Escape key closes drawer
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return
       if (drawerOpen) setDrawerOpen(false)
-      if (chatOpen)   setChatOpen(false)
     }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
-  }, [drawerOpen, chatOpen])
+  }, [drawerOpen])
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -112,8 +108,6 @@ export function AppShell({
 
   const openDrawer  = useCallback(() => setDrawerOpen(true),  [])
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const openChat    = useCallback(() => setChatOpen(true),    [])
-  const closeChat   = useCallback(() => setChatOpen(false),   [])
 
   return (
     <>
@@ -136,42 +130,6 @@ export function AppShell({
           <X size={16} />
         </button>
         <SidebarContent onNavClick={closeDrawer} />
-      </div>
-
-      {/* ── Chat sheet overlay (mobile/tablet) ── */}
-      <div
-        className={`chat-sheet-overlay${chatOpen ? " open" : ""}`}
-        onClick={closeChat}
-        aria-hidden="true"
-      />
-
-      {/* ── Chat bottom sheet (mobile/tablet) ── */}
-      <div
-        className={`chat-sheet${chatOpen ? " open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="AI Assistant"
-      >
-        {/* Sheet header */}
-        <div className="chat-sheet-header">
-          <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: "36px", height: "36px", backgroundColor: "#FBEAEA" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#8B1A1A">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
-            </svg>
-          </div>
-          <div>
-            <p style={{ fontSize: "13px", fontWeight: 700, color: "#1E2A3A", margin: 0, lineHeight: 1 }}>AI Assistant</p>
-            <p style={{ fontSize: "12px", color: "#6B7A8C", margin: "2px 0 0" }}>Powered by CampusAssist</p>
-          </div>
-          <button className="chat-sheet-close" onClick={closeChat} aria-label="Close chat">
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Chat content */}
-        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          <ChatWindow />
-        </div>
       </div>
 
       {/* ── Page shell ── */}
@@ -212,27 +170,6 @@ export function AppShell({
             {children}
           </main>
 
-          {/* Desktop AI panel (hidden on < 1024px) */}
-          <div className="ai-panel-desktop flex-col shrink-0" style={{ width: "340px", borderLeft: "1px solid #EEF0F4", backgroundColor: "#F4F6FA" }}>
-            <div className="flex items-center shrink-0" style={{ padding: "14px 16px", backgroundColor: "#FFFFFF", borderBottom: "1px solid #EEF0F4", gap: "10px" }}>
-              <div className="flex items-center justify-center rounded-full shrink-0" style={{ width: "36px", height: "36px", backgroundColor: "#FBEAEA" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#8B1A1A">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p style={{ fontSize: "13px", fontWeight: 700, color: "#1E2A3A", lineHeight: 1, margin: 0 }}>AI Assistant</p>
-                <p style={{ fontSize: "12px", color: "#6B7A8C", marginTop: "2px", margin: "2px 0 0" }}>Powered by CampusAssist</p>
-              </div>
-              <span className="flex items-center shrink-0" style={{ gap: "5px", fontSize: "10px", fontWeight: 700, color: "#8A6100", backgroundColor: "#FFF6DB", border: "1px solid rgba(245,179,1,0.40)", borderRadius: "9999px", padding: "3px 8px" }}>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#F5B301", display: "inline-block" }} />
-                Online
-              </span>
-            </div>
-            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-              <ChatWindow />
-            </div>
-          </div>
         </div>
 
         {/* Bottom tab bar (mobile only) */}
@@ -249,17 +186,6 @@ export function AppShell({
           ))}
         </nav>
 
-        {/* Floating AI button (mobile/tablet) */}
-        <button
-          className="ai-fab"
-          onClick={openChat}
-          aria-label="Open AI Assistant"
-          aria-expanded={chatOpen}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="#FFFFFF">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
-          </svg>
-        </button>
       </div>
 
       {/* Expose openDrawer via a custom event so the header button can trigger it */}
