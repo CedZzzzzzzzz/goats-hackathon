@@ -1,12 +1,8 @@
 import Link from "next/link"
-import { ChatWindow } from "@/components/ChatWindow"
 
 export default function UserHomePage() {
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
-
-      {/* ── Main content ── */}
-      <div className="flex-1 min-w-0 px-10 py-10 overflow-y-auto">
+    <div className="px-10 py-10 overflow-y-auto">
 
         {/* Heading */}
         <h1 className="text-[34px] font-extrabold tracking-tight leading-tight text-gray-900 mb-2">
@@ -102,50 +98,7 @@ export default function UserHomePage() {
             </svg>
             Track enrollment
           </Link>
-          <Link
-            href="/user/chat"
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white text-[13px] font-medium text-gray-600 hover:text-[#9B1B1B] transition-colors"
-            style={{ border: "1px solid #e5e7eb" }}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-            </svg>
-            Ask AI about enrollment
-          </Link>
         </div>
-      </div>
-
-      {/* ── AI Assistant panel ── */}
-      <div
-        className="hidden lg:flex flex-col w-[300px] xl:w-[320px] shrink-0"
-        style={{ background: "#ffffff", borderLeft: "1px solid #e5e7eb" }}
-      >
-        {/* Panel header */}
-        <div className="flex items-center gap-2.5 px-4 py-3.5" style={{ borderBottom: "1px solid #f3f4f6" }}>
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "#9B1B1B" }}
-          >
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-4H7l5-8v4h4l-5 8z"/>
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-gray-900 leading-tight">AI Assistant</p>
-            <p className="text-[11px] text-gray-400 leading-tight">Powered by CampusAssist</p>
-          </div>
-          <span className="flex items-center gap-1 text-[10px] font-semibold shrink-0" style={{ color: "#F5B400" }}>
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#F5B400" }} />
-            Online
-          </span>
-        </div>
-
-        {/* Chat */}
-        <div className="flex-1 overflow-hidden">
-          <ChatWindow />
-        </div>
-      </div>
-
     </div>
   )
 }
