@@ -16,8 +16,11 @@ function SuccessContent() {
   useEffect(() => {
     if (!enrNumber) { setLoading(false); return }
     fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`)
-      .then(r => r.json())
-      .then(data => setEnrollment(data))
+      .then(r => {
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then(data => { if (data) setEnrollment(data) })
       .finally(() => setLoading(false))
   }, [enrNumber])
 

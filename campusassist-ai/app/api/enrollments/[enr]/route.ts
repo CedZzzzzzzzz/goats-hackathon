@@ -78,15 +78,53 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Invalid status value" }, { status: 400 })
   }
 
-  const { data: updated, error } = await supabase
+  // Fetch the current enrollment to enforce transition rules atomically
+  const { data: current, error: fetchError } = await supabase
+    .from("enrollments")
+    .select("enr_number, status, student_type")
+    .eq("enr_number", enr)
+    .single()
+
+  if (fetchError || !current) {
+    return Response.json({ error: "Enrollment not found" }, { status: 404 })
+  }
+
+  // Only pending irregular enrollments may be confirmed or rejected
+  if (current.status !== "pending") {
+    return Response.json(
+      { error: `Cannot update an enrollment that is already ${current.status}` },
+      { status: 409 }
+    )
+  }
+  if (current.student_type !== "irregular") {
+    return Response.json(
+      { error: "Only irregular enrollments require manual approval" },
+      { status: 409 }
+    )
+  }
+
+  // Conditional UPDATE: only proceeds when the row still has status=pending AND
+  // student_type=irregular at the moment the write lands, closing the race window.
+  const { data: updated, error: updateError } = await supabase
     .from("enrollments")
     .update({ status: parsed.data.status })
     .eq("enr_number", enr)
+    .eq("status", "pending")
+    .eq("student_type", "irregular")
     .select("enr_number, status, updated_at")
-    .single()
+    .maybeSingle()
 
-  if (error || !updated) {
-    return Response.json({ error: "Enrollment not found" }, { status: 404 })
+  if (updateError) {
+    return Response.json({ error: "Failed to update enrollment" }, { status: 500 })
+  }
+
+  // data is null when the conditional .eq() clauses matched zero rows —
+  // another request already changed the status between our read and this write.
+  if (!updated) {
+    return Response.json(
+      { error: "Enrollment has already been reviewed by another request" },
+      { status: 409 }
+    )
   }
 
   return Response.json(updated, { status: 200 })

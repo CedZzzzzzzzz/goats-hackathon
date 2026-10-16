@@ -4,7 +4,7 @@ import { NextRequest } from "next/server"
 // ── Supabase mock ──────────────────────────────────────────────────────
 
 const mockEnrollmentsList = [
-  { enr_number: "ENR-2025-0001", full_name: "Alex Rivera", student_id: "S10001",
+  { enr_number: "ENR-00001-MN-0", full_name: "Alex Rivera", student_id: "2025-10001",
     student_type: "regular", year_level: "2nd Year", program: "BSIT",
     status: "confirmed", created_at: "2025-07-01T09:00:00Z" }
 ]
@@ -75,7 +75,9 @@ vi.mock("@/lib/supabase", () => {
 
 vi.mock("@/lib/utils", () => ({
   cn: vi.fn(),
-  generateEnrNumber: vi.fn((id: number) => `ENR-2025-${String(id).padStart(4, "0")}`)
+  generateEnrNumber: vi.fn((id: number, studentType: string) =>
+    `ENR-${String(id).padStart(5, "0")}-MN-${studentType === "regular" ? "0" : "1"}`
+  )
 }))
 
 vi.mock("@/lib/rate-limit", () => ({
@@ -143,19 +145,19 @@ describe("POST /api/enrollments", () => {
 
   it("returns 201 with status confirmed for a regular student", async () => {
     const res = await POST(makeRequest({
-      full_name: "Test Regular", student_id: "S99001",
+      full_name: "Test Regular", student_id: "2025-99001",
       student_type: "regular", year_level: "2nd Year", program: "BSIT"
     }))
     expect(res.status).toBe(201)
     const json = await res.json()
     expect(json.status).toBe("confirmed")
-    expect(json.enr_number).toMatch(/ENR-\d{4}-\d{4}/)
+    expect(json.enr_number).toMatch(/^ENR-\d{5}-MN-[01]$/)
     expect(Array.isArray(json.subjects)).toBe(true)
   })
 
   it("returns 201 with status pending for an irregular student", async () => {
     const res = await POST(makeRequest({
-      full_name: "Test Irregular", student_id: "S99002",
+      full_name: "Test Irregular", student_id: "2025-99002",
       student_type: "irregular", year_level: "2nd Year", program: "BSIT",
       subject_codes: ["IT101", "IT203"]
     }))
@@ -167,7 +169,7 @@ describe("POST /api/enrollments", () => {
 
   it("returns 400 when irregular student sends no subject_codes", async () => {
     const res = await POST(makeRequest({
-      full_name: "Bad User", student_id: "S99003",
+      full_name: "Bad User", student_id: "2025-99003",
       student_type: "irregular", year_level: "2nd Year", program: "BSIT"
     }))
     expect(res.status).toBe(400)
@@ -177,7 +179,7 @@ describe("POST /api/enrollments", () => {
 
   it("returns 400 for a missing required field", async () => {
     const res = await POST(makeRequest({
-      student_id: "S99004", student_type: "regular",
+      student_id: "2025-99004", student_type: "regular",
       year_level: "1st Year", program: "BSIT"
       // full_name missing
     }))
@@ -188,7 +190,7 @@ describe("POST /api/enrollments", () => {
     const { rateLimit } = await import("@/lib/rate-limit")
     vi.mocked(rateLimit).mockReturnValueOnce({ allowed: false, remaining: 0, resetAt: Date.now() })
     const res = await POST(makeRequest({
-      full_name: "Rate Limited", student_id: "S99005",
+      full_name: "Rate Limited", student_id: "2025-99005",
       student_type: "regular", year_level: "1st Year", program: "BSIT"
     }))
     expect(res.status).toBe(429)

@@ -1,20 +1,21 @@
 "use client"
 
-import { createContext, useContext, useState, ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
+import { usePathname, useRouter } from "next/navigation"
 
 interface RoleContextValue {
-  isStaff:    boolean
+  isStaff: boolean
   toggleRole: () => void
 }
 
 const RoleContext = createContext<RoleContextValue>({
-  isStaff:    false,
+  isStaff: false,
   toggleRole: () => {},
 })
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [isStaff, setIsStaff] = useState(false)
-  const toggleRole = () => setIsStaff(prev => !prev)
+  const toggleRole = () => setIsStaff(previous => !previous)
   return (
     <RoleContext.Provider value={{ isStaff, toggleRole }}>
       {children}
@@ -28,16 +29,24 @@ export function useRole() {
 
 export function RoleToggle() {
   const { isStaff, toggleRole } = useRole()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  function handleToggle() {
+    toggleRole()
+    router.push(isStaff ? "/" : "/admin")
+  }
+
   return (
     <button
-      onClick={toggleRole}
-      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-        isStaff
-          ? "bg-indigo-600 text-white hover:bg-indigo-700"
-          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      onClick={handleToggle}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
+        pathname.startsWith("/admin")
+          ? "border-pupila-line bg-pupila-card hover:bg-pupila-soft text-pupila-ink"
+          : "border-white/30 bg-white/15 hover:bg-white/25 text-white"
       }`}
     >
-      {isStaff ? "👤 Staff View" : "🎓 Student View"}
+      {isStaff ? "Student View" : "Admin View"}
     </button>
   )
 }
