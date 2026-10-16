@@ -6,7 +6,20 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+        serif: ['"Playfair Display"', 'serif'],
+      },
+      colors: {
+        brand: {
+          gold: '#F2A900',
+          crimson: '#A10F14',
+          dark: '#6E0A0E',
+          navy: '#14213D',
+        },
+      },
+    },
   },
   plugins: [],
 };
