@@ -19,8 +19,21 @@ const FALLBACK: AIResponse = {
   items:  null
 }
 
+// Simple greeting detector for the keyword-only fallback path
+const GREETING_RE = /^\s*(hi+|hello+|hey+|good\s+(morning|afternoon|evening|day)|kumusta|kamusta|musta|sup|howdy|yo|hola|greetings|magandang\s+(umaga|hapon|gabi))[!.,\s]*$/i
+
 export function getAIResponse(message: string): AIResponse {
   if (!message || message.trim().length === 0) return FALLBACK
+
+  // Greet back warmly before doing any KB lookup
+  if (GREETING_RE.test(message.trim())) {
+    return {
+      answer: "Hi there! 👋 I'm CampusAssist AI, your enrollment assistant. How can I help you today? Feel free to ask about enrollment, subjects, or your ENR status.",
+      source: null,
+      type:   "info",
+      items:  null,
+    }
+  }
 
   // Normalize: lowercase and collapse punctuation to spaces so phrases match
   const normalized = message.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim()
