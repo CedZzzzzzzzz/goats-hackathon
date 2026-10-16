@@ -4,14 +4,16 @@ import { useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
 import { EnrollmentNumberReveal } from "@/components/EnrollmentNumberReveal"
+import { TrackStatusModal } from "@/components/TrackStatusModal"
 import type { Enrollment } from "@/types"
 
 function SuccessContent() {
   const params     = useSearchParams()
   const enrNumber  = params.get("enr") ?? ""
   const status     = params.get("status") ?? ""
-  const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
-  const [loading,    setLoading]    = useState(true)
+  const [enrollment,   setEnrollment]   = useState<Enrollment | null>(null)
+  const [loading,      setLoading]      = useState(true)
+  const [trackOpen,    setTrackOpen]    = useState(false)
 
   useEffect(() => {
     if (!enrNumber) { setLoading(false); return }
@@ -40,7 +42,7 @@ function SuccessContent() {
       <div className="space-y-3">
         <div className="text-5xl">{isConfirmed ? "✅" : "⏳"}</div>
         <h1 className="text-3xl font-extrabold text-gray-900">
-          {isConfirmed ? "You&apos;re enrolled!" : "Pending Approval"}
+          {isConfirmed ? "You're enrolled!" : "Pending Approval"}
         </h1>
         <p className="text-gray-500 text-sm">
           {isConfirmed
@@ -76,13 +78,16 @@ function SuccessContent() {
         </div>
       ) : null}
 
+      <TrackStatusModal enrNumber={enrNumber} open={trackOpen} onClose={() => setTrackOpen(false)} />
+
       <div className="flex gap-3 justify-center flex-wrap">
-        <Link
-          href={`/user/track/${encodeURIComponent(enrNumber)}`}
-          className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
+        <button
+          onClick={() => setTrackOpen(true)}
+          className="text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+          style={{ background: "linear-gradient(135deg,#9B1B1B,#A31F1F)" }}
         >
           Track Status
-        </Link>
+        </button>
         <Link
           href={`/user/track?enr=${encodeURIComponent(enrNumber)}`}
           className="text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"

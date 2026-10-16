@@ -2,13 +2,13 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { supabaseBrowser } from "@/lib/supabase-browser"
 import {
   LayoutDashboard,
   Inbox,
   BarChart2,
-  GraduationCap,
   Menu,
   X,
   MessageCircle,
@@ -37,8 +37,9 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
   const showAiPanel = pathname === "/admin" || pathname.startsWith("/admin/requests")
 
   const navItems = [
-    { label: "Home",     href: "/admin",           icon: LayoutDashboard, exact: true },
+    { label: "Home",     href: "/admin",           icon: LayoutDashboard, exact: true  },
     { label: "Requests", href: "/admin/requests",  icon: Inbox,           exact: false },
+    { label: "Reports",  href: "/admin/reports",   icon: BarChart2,       exact: false },
   ]
 
   return (
@@ -59,16 +60,14 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div className="flex items-center gap-2.5">
-            <span
-              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: "rgba(255,255,255,0.15)" }}
-            >
-              <GraduationCap className="w-4 h-4 text-white" />
-            </span>
-            <span className="font-semibold tracking-[0.14em] text-[15px] text-white uppercase select-none">
-              PUPILA
-            </span>
+          <div className="flex items-center">
+            <Image
+              src="/img/logo.png"
+              alt="PUPILA logo"
+              width={44}
+              height={44}
+              className="shrink-0"
+            />
           </div>
         </div>
 
@@ -169,15 +168,6 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
               )
             })}
 
-            {/* Reports — disabled */}
-            <span
-              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium cursor-default select-none"
-              style={{ color: "rgba(255,255,255,0.25)" }}
-              aria-disabled="true"
-            >
-              <BarChart2 className="w-[18px] h-[18px] shrink-0" />
-              Reports
-            </span>
           </nav>
 
           {/* Footer */}
