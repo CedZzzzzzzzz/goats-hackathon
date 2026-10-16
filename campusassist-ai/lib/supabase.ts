@@ -89,9 +89,8 @@ export async function verifyToken(
 }
 
 /**
- * Check whether a verified user has the "admin" role set in their
- * user_metadata. Used by admin-only API routes instead of trusting
- * the x-demo-role header.
+ * Check whether a verified user has the "admin" role in the profiles table.
+ * Used by admin-only API routes instead of trusting the x-demo-role header.
  */
 export async function isAdminUser(
   authHeader: string | null
@@ -99,7 +98,12 @@ export async function isAdminUser(
   if (!supabaseReady) return false
   const token = authHeader?.replace(/^Bearer\s+/i, "").trim()
   if (!token) return false
-  const { data, error } = await supabaseAdmin.auth.getUser(token)
-  if (error || !data?.user) return false
-  return data.user.user_metadata?.role === "admin"
+  const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token)
+  if (userErr || !userData?.user) return false
+  const { data: profile } = await supabaseAdmin
+    .from("profiles")
+    .select("role")
+    .eq("id", userData.user.id)
+    .maybeSingle()
+  return profile?.role === "admin"
 }

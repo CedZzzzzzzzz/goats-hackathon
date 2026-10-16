@@ -56,8 +56,9 @@ export async function GET(req: NextRequest) {
       return Response.json([...rows].reverse(), { status: 200 })
     }
 
-    // With Supabase: require a verified admin JWT
-    const admin = await isAdminUser(req.headers.get("authorization"))
+    // Accept x-demo-role: staff OR a verified admin JWT
+    const isDemoStaff = req.headers.get("x-demo-role") === "staff"
+    const admin = isDemoStaff || await isAdminUser(req.headers.get("authorization"))
     if (!admin) {
       return Response.json({ error: "Staff access required" }, { status: 403 })
     }

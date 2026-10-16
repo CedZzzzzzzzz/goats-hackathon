@@ -51,7 +51,7 @@ export function RoleToggle() {
 
   function handleToggle() {
     toggleRole()
-    router.push(isStaff ? "/" : "/admin")
+    router.push(isStaff ? "/user" : "/admin")
   }
 
   return (

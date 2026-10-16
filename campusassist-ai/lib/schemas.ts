@@ -28,24 +28,13 @@ export type ChatMessage        = z.infer<typeof ChatMessageSchema>
 export type GeminiChatRequest  = z.infer<typeof GeminiChatRequestSchema>
 
 // ── Enrollment submission ─────────────────────────────────────────────
-export const PROGRAMS = [
-  "DCPET",
-  "DECET",
-  "DIT",
-  "DOMT",
-  "DMET",
-  "DEET",
-] as const
-
-export type Program = typeof PROGRAMS[number]
-
 export const EnrollmentSchema = z.object({
   full_name:     z.string().min(2).max(100),
   // Accept any non-empty student ID — format validation is handled by the server
   student_id:    z.string().min(1).max(30),
   student_type:  z.enum(["regular", "irregular"]),
   year_level:    z.enum(["1st Year", "2nd Year", "3rd Year", "4th Year"]),
-  program:       z.enum(PROGRAMS),
+  program:       z.string().min(1).max(50),
   subject_codes: z.array(z.string()).optional()
 }).refine(
   data => data.student_type !== "irregular" || (data.subject_codes && data.subject_codes.length > 0),

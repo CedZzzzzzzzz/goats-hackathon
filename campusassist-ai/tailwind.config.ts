@@ -9,10 +9,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Landing page brand tokens
+        "brand-crimson": "#9B1B1B",
+        "brand-dark":    "#6E0A0E",
+        "brand-gold":    "#F5B400",
+        "brand-navy":    "#1a1a2e",
         // Student-side palette
         "campus-red":       "#951A1A",
         "campus-red-dark":  "#7A1515",
-        // PUPILA admin palette — scoped to admin shell and components
+        // PUPILA admin palette
         "pupila-bg":        "#fbf8f5",
         "pupila-card":      "#fffefd",
         "pupila-ink":       "#2b1716",
@@ -24,6 +29,9 @@ const config: Config = {
         "pupila-gold":      "#f5b400",
         "pupila-gold-soft": "#fff2c7",
         "pupila-green":     "#1f8a5b",
+      },
+      fontFamily: {
+        sans: ["'Plus Jakarta Sans'", "'Inter'", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

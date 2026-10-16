@@ -99,7 +99,7 @@ function EnrPrompt({ onEnr }: { onEnr: (enr: string) => void }) {
             View
           </button>
         </form>
-        <Link href="/enroll" style={{ fontSize: 12, color: "#8B1A1A", textDecoration: "none", textAlign: "center", fontWeight: 600 }}>
+        <Link href="/user/enroll" style={{ fontSize: 12, color: "#8B1A1A", textDecoration: "none", textAlign: "center", fontWeight: 600 }}>
           Don&apos;t have an ENR? Start enrollment →
         </Link>
       </div>
@@ -717,7 +717,7 @@ function ScheduleContent() {
                 background: "none", border: "1px solid #8B1A1A",
                 borderRadius: 8, padding: "6px 14px", cursor: "pointer",
               }}>Try another ENR</button>
-              <Link href="/enroll" style={{
+              <Link href="/user/enroll" style={{
                 fontSize: 13, fontWeight: 600, color: "#FFFFFF",
                 background: "linear-gradient(135deg,#8B1A1A,#A31F1F)",
                 borderRadius: 8, padding: "6px 14px", textDecoration: "none",
@@ -748,7 +748,7 @@ function ScheduleContent() {
           }}>
             <AlertTriangle size={14} style={{ flexShrink: 0 }} />
             Your enrollment was rejected. Please contact the Enrollment Office.
-            <Link href="/enroll" style={{ marginLeft: "auto", color: "#8B1A1A", fontWeight: 600, textDecoration: "none" }}>Re-enroll</Link>
+            <Link href="/user/enroll" style={{ marginLeft: "auto", color: "#8B1A1A", fontWeight: 600, textDecoration: "none" }}>Re-enroll</Link>
           </div>
         )}
 

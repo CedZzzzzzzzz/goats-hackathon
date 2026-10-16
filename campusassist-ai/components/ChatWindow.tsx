@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Send } from "lucide-react"
-import type { AIResponse } from "@/types"
 import { ChecklistCard } from "./ChecklistCard"
 
 interface Message {
@@ -10,6 +9,14 @@ interface Message {
   content: string
   ai?:     AIResponse
 }
+
+const CHIPS = [
+  "How do I enroll?",
+  "Regular vs Irregular",
+  "Required documents",
+  "Track my status",
+  "When is enrollment?",
+]
 
 export function ChatWindow() {
   const [messages, setMessages] = useState<Message[]>([
@@ -19,33 +26,76 @@ export function ChatWindow() {
       ai:      { answer: "Hi! I'm CampusAssist AI. Ask me anything about the enrollment process.", source: null, type: "info", items: null },
     },
   ])
-  const [input,   setInput]   = useState("")
-  const [loading, setLoading] = useState(false)
+  const [input,      setInput]      = useState("")
+  const [loading,    setLoading]    = useState(false)
+  const [chipsShown, setChipsShown] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  async function send() {
-    const text = input.trim()
+  async function sendText(text: string) {
     if (!text || loading) return
     setInput("")
-    setMessages(prev => [...prev, { role: "user", content: text }])
+    setChipsShown(false)
+
+    const nextMessages: Message[] = [
+      ...messages,
+      { role: "user", content: text },
+    ]
+    setMessages(nextMessages)
     setLoading(true)
+
+    // Accumulate streamed chunks into a single assistant message
+    let accumulated = ""
+
     try {
-      const res  = await fetch("/api/chat", {
+      const res = await fetch("/api/chat", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ message: text }),
+        body:    JSON.stringify({
+          messages: nextMessages.map(m => ({ role: m.role, content: m.content })),
+        }),
       })
-      const data: AIResponse = await res.json()
-      setMessages(prev => [...prev, { role: "assistant", content: data.answer, ai: data }])
+
+      if (!res.ok) {
+        throw new Error(`Request failed: ${res.status}`)
+      }
+
+      const reader  = res.body!.getReader()
+      const decoder = new TextDecoder()
+
+      // Add a placeholder assistant message to stream into
+      setMessages(prev => [...prev, { role: "assistant", content: "" }])
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const raw = decoder.decode(value, { stream: true })
+        for (const line of raw.split("\n")) {
+          if (!line.startsWith("data: ")) continue
+          try {
+            const event = JSON.parse(line.slice(6))
+            if (event.type === "chunk" && event.text) {
+              accumulated += event.text
+              // Update the last assistant message in place
+              setMessages(prev => {
+                const updated = [...prev]
+                updated[updated.length - 1] = { role: "assistant", content: accumulated }
+                return updated
+              })
+            }
+          } catch {
+            // ignore malformed SSE lines
+          }
+        }
+      }
     } catch {
       setMessages(prev => [...prev, {
         role:    "assistant",
         content: "Something went wrong. Please try again.",
-        ai:      { answer: "Something went wrong.", source: null, type: "unknown", items: null },
       }])
     } finally {
       setLoading(false)
@@ -109,19 +159,43 @@ export function ChatWindow() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input bar ── */}
+      {/* ── Input area ── */}
       <div className="px-3 pb-3 pt-2 border-t border-gray-100 bg-[#FAFAFA]">
+
+        {/* Suggestion chips — shown until first message sent */}
+        {chipsShown && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {CHIPS.map(chip => (
+              <button
+                key={chip}
+                onClick={() => sendText(chip)}
+                disabled={loading}
+                className="px-3 py-1 rounded-full text-[11px] font-medium border transition-colors disabled:opacity-40"
+                style={{
+                  background:   "#fff",
+                  borderColor:  "#e5e7eb",
+                  color:        "#374151",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#9B1B1B"; (e.currentTarget as HTMLButtonElement).style.color = "#9B1B1B" }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLButtonElement).style.color = "#374151" }}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 focus-within:border-[#9B1B1B]/40 focus-within:ring-2 focus-within:ring-[#9B1B1B]/10 transition-all">
           <input
             className="flex-1 text-[13px] outline-none placeholder:text-gray-400 bg-transparent text-gray-800"
             placeholder="Ask AI…"
             value={input}
             onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && send()}
+            onKeyDown={e => e.key === "Enter" && sendText(input.trim())}
             disabled={loading}
           />
           <button
-            onClick={send}
+            onClick={() => sendText(input.trim())}
             disabled={loading || !input.trim()}
             aria-label="Send"
             className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#9B1B1B] text-white disabled:opacity-30 hover:bg-[#7a1515] active:scale-95 transition-all shrink-0"

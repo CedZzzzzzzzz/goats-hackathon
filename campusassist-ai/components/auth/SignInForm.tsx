@@ -85,7 +85,7 @@ export function SignInForm() {
       setOk(false)
     } else {
       setOk(true)
-      const destination = profile.role === "admin" ? "/admin" : "/"
+      const destination = profile.role === "admin" ? "/admin" : "/user"
       router.push(destination)
     }
   }

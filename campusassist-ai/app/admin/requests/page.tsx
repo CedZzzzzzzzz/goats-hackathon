@@ -4,6 +4,15 @@ import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import type { Enrollment, EnrollmentSummary } from "@/types"
 import { useRole } from "@/components/RoleToggle"
+import { supabaseBrowser } from "@/lib/supabase-browser"
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabaseBrowser.auth.getSession()
+  return {
+    "x-demo-role": "staff",
+    ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+  }
+}
 
 // ── Status badge ──────────────────────────────────────────────────────
 
@@ -41,13 +50,15 @@ function DetailPanel({ enrNumber, onRefresh }: DetailPanelProps) {
     setFetchErr(null)
     setAction("idle")
     setActionErr(null)
-    fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`)
-      .then(r => {
-        if (!r.ok) throw new Error("Failed to load enrollment detail")
-        return r.json()
-      })
-      .then((d: Enrollment) => { setDetail(d); setLoading(false) })
-      .catch(e => { setFetchErr(e instanceof Error ? e.message : "Error"); setLoading(false) })
+    authHeaders().then(headers =>
+      fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`, { headers })
+        .then(r => {
+          if (!r.ok) throw new Error("Failed to load enrollment detail")
+          return r.json()
+        })
+        .then((d: Enrollment) => { setDetail(d); setLoading(false) })
+        .catch(e => { setFetchErr(e instanceof Error ? e.message : "Error"); setLoading(false) })
+    )
   }, [enrNumber])
 
   async function handleAction(status: "confirmed" | "rejected") {
@@ -57,7 +68,7 @@ function DetailPanel({ enrNumber, onRefresh }: DetailPanelProps) {
     try {
       const res = await fetch(`/api/enrollments/${encodeURIComponent(enrNumber)}`, {
         method:  "PATCH",
-        headers: { "Content-Type": "application/json", "x-demo-role": "staff" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body:    JSON.stringify({ status }),
       })
       if (!res.ok) {
@@ -203,7 +214,7 @@ export default function RequestsPage() {
     setError(null)
     try {
       const res = await fetch("/api/enrollments", {
-        headers: { "x-demo-role": "staff" },
+        headers: await authHeaders(),
       })
       if (!res.ok) throw new Error("Failed to load enrollments")
       const data = await res.json()

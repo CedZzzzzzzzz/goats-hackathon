@@ -28,7 +28,7 @@ function SuccessContent() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500">No enrollment number found.</p>
-        <Link href="/enroll" className="text-indigo-600 underline mt-2 inline-block">Start enrollment</Link>
+        <Link href="/user/enroll" className="text-indigo-600 underline mt-2 inline-block">Start enrollment</Link>
       </div>
     )
   }
@@ -78,20 +78,20 @@ function SuccessContent() {
 
       <div className="flex gap-3 justify-center flex-wrap">
         <Link
-          href={`/track/${encodeURIComponent(enrNumber)}`}
+          href={`/user/track/${encodeURIComponent(enrNumber)}`}
           className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-indigo-700 transition-colors"
         >
           Track Status
         </Link>
         <Link
-          href={`/track?enr=${encodeURIComponent(enrNumber)}`}
+          href={`/user/track?enr=${encodeURIComponent(enrNumber)}`}
           className="text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"
           style={{ background: "linear-gradient(135deg,#8B1A1A,#A31F1F)" }}
         >
           View my schedule
         </Link>
         <Link
-          href="/enroll"
+          href="/user/enroll"
           className="bg-gray-100 text-gray-700 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-gray-200 transition-colors"
         >
           New Enrollment

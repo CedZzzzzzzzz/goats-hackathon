@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { Subject } from "@/types"
 import { SubjectPicker } from "@/components/SubjectPicker"
+import { supabaseBrowser } from "@/lib/supabase-browser"
 
 type StudentType = "regular" | "irregular"
 type YearLevel   = "1st Year" | "2nd Year" | "3rd Year" | "4th Year"
@@ -83,17 +84,22 @@ function EnrollForm() {
     try {
       const body: Record<string, unknown> = { ...form }
       if (form.student_type === "irregular") body.subject_codes = subjectCodes
-      const res  = await fetch("/api/enrollments", {
+
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      const res = await fetch("/api/enrollments", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { "Authorization": `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify(body),
       })
       const data = await res.json()
       if (!res.ok) {
         setErrors({ form: data.error ?? "Enrollment failed. Please try again." })
         return
       }
-      router.push(`/success?enr=${encodeURIComponent(data.enr_number)}&status=${data.status}`)
+      router.push(`/user/success?enr=${encodeURIComponent(data.enr_number)}&status=${data.status}`)
     } catch {
       setErrors({ form: "Network error. Please try again." })
     } finally {
@@ -110,7 +116,7 @@ function EnrollForm() {
       {/* Back link */}
       <div className="w-full max-w-lg mb-4">
         <Link
-          href="/"
+          href="/user"
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#9B1B1B] transition-colors"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

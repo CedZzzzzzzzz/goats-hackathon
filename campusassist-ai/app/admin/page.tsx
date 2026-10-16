@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import type { EnrollmentSummary } from "@/types"
 import { useRole } from "@/components/RoleToggle"
+import { supabaseBrowser } from "@/lib/supabase-browser"
 
 interface Counts {
   total:     number
@@ -18,30 +19,29 @@ function StatCard({
   label,
   value,
   sub,
-  highlight,
+  accent,
 }: {
-  label:     string
-  value:     number
-  sub?:      string
-  highlight?: boolean
+  label:   string
+  value:   number
+  sub?:    string
+  accent?: boolean
 }) {
   return (
     <div
-      className={[
-        "bg-pupila-card border rounded-[20px] px-6 py-[22px] min-w-0",
-        highlight ? "border-pupila-gold" : "border-pupila-line",
-      ].join(" ")}
+      className="rounded-2xl px-6 py-5 min-w-0"
+      style={{
+        background:  "#ffffff",
+        border:      accent ? "1px solid #7a1515" : "1px solid #e5e7eb",
+      }}
     >
-      <p className="text-[13px] text-pupila-mute">{label}</p>
+      <p className="text-[12px] font-medium text-gray-400 uppercase tracking-wide mb-3">{label}</p>
       <p
-        className={[
-          "text-[38px] font-semibold tracking-[-0.03em] leading-[1.1] my-4",
-          highlight ? "text-pupila-brand" : "text-pupila-ink",
-        ].join(" ")}
+        className="text-[36px] font-semibold tracking-tight leading-none mb-2"
+        style={{ color: accent ? "#7a1515" : "#111827" }}
       >
         {value}
       </p>
-      {sub && <p className="text-xs text-pupila-mute">{sub}</p>}
+      {sub && <p className="text-xs text-gray-400">{sub}</p>}
     </div>
   )
 }
@@ -58,8 +58,14 @@ export default function AdminDashboardPage() {
     setLoading(true)
     setError(null)
     try {
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       const res = await fetch("/api/enrollments", {
-        headers: { "x-demo-role": "staff" },
+        headers: {
+          "x-demo-role":   "staff",
+          ...(session?.access_token
+            ? { "Authorization": `Bearer ${session.access_token}` }
+            : {}),
+        },
       })
       if (!res.ok) throw new Error("Failed to load enrollments")
       const data: EnrollmentSummary[] = await res.json()
@@ -84,20 +90,22 @@ export default function AdminDashboardPage() {
 
   if (!isStaff) {
     return (
-      <div className="text-center py-16 space-y-4">
-        <p className="text-4xl">🔒</p>
-        <p className="text-pupila-ink font-semibold">Staff access required</p>
-        <p className="text-sm text-pupila-mute">
+      <div className="rounded-2xl bg-white border border-gray-200 px-8 py-14 text-center max-w-sm mx-auto mt-10">
+        <p className="text-[15px] font-semibold text-gray-900 mb-1">Staff access required</p>
+        <p className="text-sm text-gray-400 mb-6">
           Use the role toggle in the header to switch to Admin View.
         </p>
-        <Link href="/" className="inline-block mt-2 text-sm text-pupila-brand hover:underline">
-          ← Back to student portal
+        <Link
+          href="/user"
+          className="text-sm font-medium text-[#7a1515] hover:underline"
+        >
+          Back to student portal
         </Link>
       </div>
     )
   }
 
-  // Sort pending by created_at ascending (oldest first)
+  // Sort pending ascending (oldest first), show up to 3
   const pendingList = [...enrollments]
     .filter(e => e.status === "pending")
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
@@ -105,72 +113,93 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      {/* Eyebrow */}
-      <p className="font-mono text-[11px] font-medium tracking-[0.08em] text-pupila-mute mb-1.5">
-        1ST SEMESTER&nbsp;&nbsp;|&nbsp;&nbsp;AY 2025–2026
-      </p>
-
       {/* Heading */}
-      <h1 className="text-[clamp(24px,2.5vw,30px)] font-semibold tracking-[-0.025em] leading-[1.15] text-pupila-ink mb-1.5">
+      <h1 className="text-[26px] font-semibold tracking-tight text-gray-900 mb-1">
         Enrollment overview
       </h1>
-      <p className="text-sm text-pupila-mute mb-6">
-        See where enrollment stands and what needs your attention today.
+      <p className="text-sm text-gray-400 mb-8">
+        1st Semester &nbsp;·&nbsp; AY 2025–2026
       </p>
 
       {/* Stat cards */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-pupila-card border border-pupila-line rounded-[20px] px-6 py-[22px] h-[120px] animate-pulse" />
+            <div
+              key={i}
+              className="rounded-2xl h-[120px] animate-pulse"
+              style={{ background: "#e5e7eb" }}
+            />
           ))}
         </div>
       ) : error ? (
-        <div className="bg-pupila-card border border-pupila-line rounded-[20px] px-6 py-8 text-center mb-4">
-          <p className="text-pupila-brand text-sm mb-3">{error}</p>
-          <button onClick={load} className="text-sm text-pupila-brand border border-pupila-line rounded-[10px] px-4 py-2 hover:bg-pupila-soft transition-colors">
+        <div
+          className="rounded-2xl px-6 py-8 text-center mb-6"
+          style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}
+        >
+          <p className="text-sm text-[#7a1515] mb-3">{error}</p>
+          <button
+            onClick={load}
+            className="text-sm font-medium px-4 py-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             Retry
           </button>
         </div>
       ) : counts ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-[14px] mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <StatCard label="Total enrolled"   value={counts.total}     sub="All enrollments" />
-          <StatCard label="Pending approval" value={counts.pending}   sub="Irregular requests" highlight />
-          <StatCard label="Regular"          value={counts.regular}   sub={counts.total ? `${Math.round(counts.regular / counts.total * 100)}% of total` : undefined} />
-          <StatCard label="Irregular"        value={counts.irregular} sub={counts.total ? `${Math.round(counts.irregular / counts.total * 100)}% of total` : undefined} />
+          <StatCard label="Pending approval" value={counts.pending}   sub="Irregular requests" accent />
+          <StatCard
+            label="Regular"
+            value={counts.regular}
+            sub={counts.total ? `${Math.round(counts.regular / counts.total * 100)}% of total` : undefined}
+          />
+          <StatCard
+            label="Irregular"
+            value={counts.irregular}
+            sub={counts.total ? `${Math.round(counts.irregular / counts.total * 100)}% of total` : undefined}
+          />
         </div>
       ) : null}
 
-      {/* Two-column: Needs review + placeholder */}
+      {/* Two-column: Needs review + Summary */}
       {!loading && !error && counts !== null && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
           {/* Needs review */}
-          <div className="bg-pupila-card border border-pupila-line rounded-[20px] p-6">
-            <div className="flex items-end justify-between gap-4 flex-wrap mb-2.5">
+          <div
+            className="rounded-2xl p-6"
+            style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
               <div>
-                <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-pupila-ink">Needs review</h2>
-                <p className="text-sm text-pupila-mute mt-0.5">Oldest requests first.</p>
+                <h2 className="text-[16px] font-semibold text-gray-900">Needs review</h2>
+                <p className="text-sm text-gray-400 mt-0.5">Oldest requests first</p>
               </div>
               <Link
                 href="/admin/requests"
-                className="text-sm font-medium border border-pupila-line bg-pupila-card rounded-[10px] px-[14px] py-2 hover:bg-pupila-soft transition-colors text-pupila-ink"
+                className="text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
               >
                 View all
               </Link>
             </div>
 
             {pendingList.length === 0 ? (
-              <p className="text-sm text-pupila-mute pt-3.5">All requests are reviewed.</p>
+              <p className="text-sm text-gray-400 pt-2">All requests have been reviewed.</p>
             ) : (
               pendingList.map(e => (
-                <div key={e.enr_number} className="grid grid-cols-[1fr_auto] gap-3.5 items-center py-3.5 border-t border-pupila-line">
-                  <div>
-                    <p className="font-semibold text-[15px] text-pupila-ink">{e.full_name}</p>
-                    <p className="text-[13px] text-pupila-mute font-mono">{e.student_id}</p>
+                <div
+                  key={e.enr_number}
+                  className="flex items-center justify-between gap-4 py-3"
+                  style={{ borderTop: "1px solid #f3f4f6" }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[14px] font-semibold text-gray-900 truncate">{e.full_name}</p>
+                    <p className="text-[12px] text-gray-400 font-mono">{e.student_id}</p>
                   </div>
                   <Link
                     href="/admin/requests"
-                    className="text-sm font-medium border border-pupila-line bg-pupila-card rounded-[10px] px-[14px] py-2 hover:bg-pupila-soft transition-colors text-pupila-ink whitespace-nowrap"
+                    className="text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap shrink-0"
                   >
                     Review
                   </Link>
@@ -180,23 +209,31 @@ export default function AdminDashboardPage() {
           </div>
 
           {/* Enrollment summary */}
-          <div className="bg-pupila-card border border-pupila-line rounded-[20px] p-6 flex flex-col gap-2">
-            <div className="mb-1">
-              <h2 className="text-[20px] font-semibold tracking-[-0.025em] text-pupila-ink">Enrollment summary</h2>
-              <p className="text-sm text-pupila-mute mt-0.5">{counts.total} total enrollment{counts.total !== 1 ? "s" : ""} this semester.</p>
-            </div>
+          <div
+            className="rounded-2xl p-6"
+            style={{ background: "#ffffff", border: "1px solid #e5e7eb" }}
+          >
+            <h2 className="text-[16px] font-semibold text-gray-900 mb-1">Enrollment summary</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              {counts.total} total enrollment{counts.total !== 1 ? "s" : ""} this semester
+            </p>
+
             {[
-              { label: "Confirmed",  value: counts.confirmed, color: "bg-pupila-green" },
-              { label: "Pending",    value: counts.pending,   color: "bg-pupila-gold" },
-              { label: "Rejected",   value: counts.rejected,  color: "bg-pupila-brand" },
+              { label: "Confirmed", value: counts.confirmed },
+              { label: "Pending",   value: counts.pending   },
+              { label: "Rejected",  value: counts.rejected  },
             ].map(row => (
-              <div key={row.label} className="flex items-center gap-3 py-2 border-t border-pupila-line">
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${row.color}`} />
-                <span className="text-sm text-pupila-ink flex-1">{row.label}</span>
-                <span className="text-sm font-semibold text-pupila-ink tabular-nums">{row.value}</span>
+              <div
+                key={row.label}
+                className="flex items-center justify-between py-3"
+                style={{ borderTop: "1px solid #f3f4f6" }}
+              >
+                <span className="text-sm text-gray-700">{row.label}</span>
+                <span className="text-sm font-semibold text-gray-900 tabular-nums">{row.value}</span>
               </div>
             ))}
           </div>
+
         </div>
       )}
     </div>

@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { supabaseBrowser } from "@/lib/supabase-browser"
 import {
   LayoutDashboard,
   Inbox,
@@ -11,13 +12,10 @@ import {
   Menu,
   X,
   MessageCircle,
-  Zap,
   User,
 } from "lucide-react"
 import { RoleToggle } from "@/components/RoleToggle"
 import { ChatWindow } from "@/components/ChatWindow"
-
-// ── PupilaAdminShell ─────────────────────────────────────────────────
 
 interface PupilaAdminShellProps {
   children: React.ReactNode
@@ -25,22 +23,36 @@ interface PupilaAdminShellProps {
 
 export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
   const pathname      = usePathname()
+  const router        = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [aiOpen,      setAiOpen]      = useState(true)
+  const [loggingOut,  setLoggingOut]  = useState(false)
 
-  // AI panel shown on dashboard (/admin) and requests only
+  async function handleLogout() {
+    setLoggingOut(true)
+    await supabaseBrowser.auth.signOut()
+    router.push("/auth")
+  }
+
   const showAiPanel = pathname === "/admin" || pathname.startsWith("/admin/requests")
 
+  const navItems = [
+    { label: "Home",     href: "/admin",           icon: LayoutDashboard, exact: true },
+    { label: "Requests", href: "/admin/requests",  icon: Inbox,           exact: false },
+  ]
+
   return (
-    <div className="min-h-screen bg-pupila-bg flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: "#f5f6fa" }}>
 
       {/* ── Top header ──────────────────────────────────────────────── */}
-      <header className="h-16 bg-pupila-card border-b border-pupila-line flex items-center justify-between px-6 shrink-0 sticky top-0 z-30">
-
+      <header
+        className="h-16 flex items-center justify-between px-6 shrink-0 sticky top-0 z-30"
+        style={{ background: "#7a1515" }}
+      >
         {/* Left: hamburger (mobile) + brand */}
         <div className="flex items-center gap-3">
           <button
-            className="md:hidden text-pupila-mute hover:text-pupila-ink transition-colors"
+            className="md:hidden text-white/60 hover:text-white transition-colors"
             onClick={() => setSidebarOpen(s => !s)}
             aria-label="Toggle navigation"
           >
@@ -48,29 +60,41 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
           </button>
 
           <div className="flex items-center gap-2.5">
-            {/* PUPILA brand mark — red square with cap icon */}
-            <span className="w-8 h-8 rounded-[9px] bg-pupila-brand flex items-center justify-center shrink-0">
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            >
               <GraduationCap className="w-4 h-4 text-white" />
             </span>
-            <span className="font-semibold tracking-[0.14em] text-[15px] text-pupila-ink uppercase select-none">
+            <span className="font-semibold tracking-[0.14em] text-[15px] text-white uppercase select-none">
               PUPILA
             </span>
           </div>
         </div>
 
-        {/* Right: role toggle + AI panel toggle + avatar */}
+        {/* Right: role toggle + logout + AI panel toggle + avatar */}
         <div className="flex items-center gap-2.5">
           <RoleToggle />
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="px-4 py-1.5 rounded-full border border-white text-white text-xs font-bold tracking-wide hover:bg-white hover:text-[#7a1515] transition-colors disabled:opacity-60"
+          >
+            {loggingOut ? "Logging out…" : "LOG OUT"}
+          </button>
           {showAiPanel && (
             <button
-              className="hidden xl:flex items-center justify-center w-8 h-8 rounded-full text-pupila-mute hover:text-pupila-ink hover:bg-pupila-soft transition-colors"
+              className="hidden xl:flex items-center justify-center w-8 h-8 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-colors"
               onClick={() => setAiOpen(o => !o)}
               aria-label="Toggle AI assistant"
             >
               <MessageCircle className="w-4 h-4" />
             </button>
           )}
-          <span className="w-9 h-9 rounded-full bg-pupila-soft border border-pupila-line flex items-center justify-center text-pupila-mute">
+          <span
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 border border-white/20"
+            style={{ background: "rgba(255,255,255,0.1)" }}
+          >
             <User className="w-4 h-4" />
           </span>
         </div>
@@ -90,57 +114,66 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
         {/* ── Sidebar ─────────────────────────────────────────────── */}
         <aside
           className={[
-            "fixed top-16 bottom-0 left-0 z-20 w-[232px] bg-pupila-card border-r border-pupila-line flex flex-col",
+            "fixed top-16 bottom-0 left-0 z-20 w-[210px] flex flex-col",
             "transition-transform duration-200 ease-in-out",
             "md:translate-x-0 md:static md:top-auto md:bottom-auto md:z-auto md:flex md:shrink-0",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
           ].join(" ")}
+          style={{ background: "#7a1515" }}
         >
-          {/* Semester context */}
-          <div className="px-4 pt-5 pb-1">
-            <p className="font-mono text-[11px] font-medium tracking-[0.08em] text-pupila-mute">
-              1ST SEMESTER&nbsp;&nbsp;|&nbsp;&nbsp;AY 2025–2026
-            </p>
+          {/* Semester badge */}
+          <div className="px-4 pt-5 pb-3">
+            <div
+              className="rounded-[10px] px-3 py-2.5"
+              style={{ background: "rgba(0,0,0,0.25)" }}
+            >
+              <p className="text-[10px] font-semibold tracking-[0.1em] text-white/60 uppercase mb-0.5">
+                1st Semester
+              </p>
+              <p className="text-[13px] font-semibold text-white leading-tight">
+                AY 2025–2026
+              </p>
+            </div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex flex-col gap-0.5 px-3.5 mt-3 flex-1">
+          {/* Nav label */}
+          <p className="px-4 pt-3 pb-1.5 text-[10px] font-semibold tracking-[0.1em] text-white/40 uppercase">
+            Menu
+          </p>
 
-            {/* Dashboard */}
-            <Link
-              href="/admin"
-              onClick={() => setSidebarOpen(false)}
-              className={[
-                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors mb-0.5",
-                pathname === "/admin"
-                  ? "bg-pupila-tint text-pupila-brand"
-                  : "text-pupila-mute hover:bg-pupila-soft hover:text-pupila-ink",
-              ].join(" ")}
-            >
-              <LayoutDashboard className="w-[18px] h-[18px] shrink-0" />
-              Dashboard
-            </Link>
+          {/* Nav items */}
+          <nav className="flex flex-col gap-0.5 px-3 flex-1">
+            {navItems.map(({ label, href, icon: Icon, exact }) => {
+              const active = exact ? pathname === href : pathname.startsWith(href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors relative"
+                  style={{
+                    color:      active ? "#ffffff" : "rgba(255,255,255,0.55)",
+                    background: active ? "rgba(255,255,255,0.12)" : "transparent",
+                  }}
+                >
+                  {/* active left bar */}
+                  {active && (
+                    <span
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full"
+                      style={{ height: "60%", background: "#f5b400" }}
+                    />
+                  )}
+                  <Icon className="w-[18px] h-[18px] shrink-0" />
+                  {label}
+                </Link>
+              )
+            })}
 
-            {/* Requests — live link with pending count */}
-            <Link
-              href="/admin/requests"
-              onClick={() => setSidebarOpen(false)}
-              className={[
-                "flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium transition-colors mb-0.5",
-                pathname.startsWith("/admin/requests")
-                  ? "bg-pupila-tint text-pupila-brand"
-                  : "text-pupila-mute hover:bg-pupila-soft hover:text-pupila-ink",
-              ].join(" ")}
-            >
-              <Inbox className="w-[18px] h-[18px] shrink-0" />
-              Requests
-            </Link>
-
-            {/* Reports — Phase 4: disabled until page exists */}
+            {/* Reports — disabled */}
             <span
-              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium text-pupila-mute/40 cursor-default select-none mb-0.5"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] text-sm font-medium cursor-default select-none"
+              style={{ color: "rgba(255,255,255,0.25)" }}
               aria-disabled="true"
-              title="Coming in Phase 4"
             >
               <BarChart2 className="w-[18px] h-[18px] shrink-0" />
               Reports
@@ -148,32 +181,46 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
           </nav>
 
           {/* Footer */}
-          <div className="px-4 pb-4 pt-3 border-t border-pupila-line mt-auto">
-            <p className="text-xs text-pupila-mute">Enrollment Portal</p>
+          <div
+            className="px-4 pb-4 pt-3 mt-auto"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+              Enrollment Portal
+            </p>
           </div>
         </aside>
 
         {/* ── Content area ────────────────────────────────────────── */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-pupila-bg">
-          <div className="px-4 py-7 md:px-[48px] md:py-[44px]">
+        <main className="flex-1 min-w-0 overflow-y-auto" style={{ background: "#f5f6fa" }}>
+          <div className="px-6 py-8 md:px-10 md:py-10">
             {children}
           </div>
         </main>
 
-        {/* ── AI panel — dashboard + requests only, xl screens ─────── */}
+        {/* ── AI panel ─────────────────────────────────────────────── */}
         {showAiPanel && aiOpen && (
-          <aside className="hidden xl:flex flex-col w-[340px] shrink-0 bg-pupila-card border-l border-pupila-line">
+          <aside
+            className="hidden xl:flex flex-col w-[320px] shrink-0"
+            style={{ background: "#ffffff", borderLeft: "1px solid #e5e7eb" }}
+          >
             {/* Panel header */}
-            <div className="flex items-center gap-3 px-5 py-[18px] border-b border-pupila-line">
-              <span className="w-[38px] h-[38px] rounded-[11px] bg-pupila-brand flex items-center justify-center shrink-0">
-                <Zap className="w-4 h-4 text-white" />
+            <div
+              className="flex items-center gap-3 px-5 py-4"
+              style={{ borderBottom: "1px solid #e5e7eb" }}
+            >
+              <span
+                className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
+                style={{ background: "#971b1f" }}
+              >
+                <MessageCircle className="w-4 h-4 text-white" />
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-[15px] font-semibold text-pupila-ink leading-tight">PUPILA AI Assistant</p>
-                <p className="text-xs text-pupila-mute truncate">Powered by CampusAssist</p>
+                <p className="text-[14px] font-semibold text-gray-900 leading-tight">AI Assistant</p>
+                <p className="text-xs text-gray-400 truncate">Powered by CampusAssist</p>
               </div>
-              <span className="flex items-center gap-1.5 text-xs font-medium text-pupila-green bg-[#e7f5ee] rounded-full px-2.5 py-1 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-pupila-green" />
+              <span className="flex items-center gap-1.5 text-xs font-medium text-[#1f8a5b] shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#1f8a5b]" />
                 Online
               </span>
             </div>
@@ -184,7 +231,10 @@ export function PupilaAdminShell({ children }: PupilaAdminShellProps) {
             </div>
 
             {/* Disclaimer */}
-            <p className="text-center text-xs text-pupila-mute px-4 py-3 border-t border-pupila-line">
+            <p
+              className="text-center text-xs text-gray-400 px-4 py-3"
+              style={{ borderTop: "1px solid #e5e7eb" }}
+            >
               Answers from curated enrollment content only
             </p>
           </aside>
