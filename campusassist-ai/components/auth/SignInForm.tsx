@@ -55,7 +55,7 @@ export function SignInForm() {
     // Look up the email for this student_id from the profiles table.
     const { data: profile, error: profileErr } = await supabaseBrowser
       .from("profiles")
-      .select("email")
+      .select("email, role")
       .eq("student_id", sid2)
       .maybeSingle()
 
@@ -85,7 +85,8 @@ export function SignInForm() {
       setOk(false)
     } else {
       setOk(true)
-      router.push("/enroll")
+      const destination = profile.role === "admin" ? "/admin" : "/"
+      router.push(destination)
     }
   }
 
