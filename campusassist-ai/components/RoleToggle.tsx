@@ -1,20 +1,21 @@
 "use client"
 
-import { createContext, useContext, useState, ReactNode } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
+import { usePathname, useRouter } from "next/navigation"
 
 interface RoleContextValue {
-  isStaff:    boolean
+  isStaff: boolean
   toggleRole: () => void
 }
 
 const RoleContext = createContext<RoleContextValue>({
-  isStaff:    false,
+  isStaff: false,
   toggleRole: () => {},
 })
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [isStaff, setIsStaff] = useState(false)
-  const toggleRole = () => setIsStaff(prev => !prev)
+  const toggleRole = () => setIsStaff(previous => !previous)
   return (
     <RoleContext.Provider value={{ isStaff, toggleRole }}>
       {children}
@@ -27,18 +28,25 @@ export function useRole() {
 }
 
 export function RoleToggle() {
+  const { isStaff, toggleRole } = useRole()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  function handleToggle() {
+    toggleRole()
+    router.push(isStaff ? "/" : "/admin")
+  }
+
   return (
     <button
-      className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-bold transition-all duration-200"
-      style={{
-        color:           "#FFFFFF",
-        backgroundColor: "transparent",
-        border:          "2px solid #FFFFFF",
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "rgba(255,255,255,0.15)" }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent" }}
+      onClick={handleToggle}
+      className={`rounded-full px-4 py-1.5 text-sm font-medium border transition-colors ${
+        pathname.startsWith("/admin")
+          ? "border-pupila-line bg-pupila-card hover:bg-pupila-soft text-pupila-ink"
+          : "border-white/30 bg-white/15 hover:bg-white/25 text-white"
+      }`}
     >
-      LOG OUT
+      {isStaff ? "Student View" : "Admin View"}
     </button>
   )
 }
