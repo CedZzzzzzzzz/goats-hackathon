@@ -24,8 +24,13 @@ const CHIP_ROUTES: Record<string, Route> = {
   "Track my status":         "live_data",
   "Required documents":      "knowledge",
   "Regular vs Irregular":    "knowledge",
+  "When is enrollment?":     "knowledge",
   "Show my schedule":        "live_data",
 }
+
+// ── Greeting words — fast-path to "knowledge" so they never hit the
+//   off_topic branch and always reach the Gemini conversational mode ───
+const GREETING_RE = /^\s*(hi+|hello+|hey+|good\s+(morning|afternoon|evening|day)|kumusta|kamusta|musta|sup|howdy|yo|hola|greetings|magandang\s+(umaga|hapon|gabi))[!.,\s]*$/i
 
 // ── Classification prompt ─────────────────────────────────────────────
 export const CLASSIFICATION_PROMPT = `
@@ -96,7 +101,11 @@ export async function classifyMessage(
   // ── Fast-path 1: exact chip text ──────────────────────────────────
   if (text in CHIP_ROUTES) return CHIP_ROUTES[text]
 
-  // ── Fast-path 2: contains ENR number ─────────────────────────────
+  // ── Fast-path 2: greeting — route to knowledge so Gemini handles it
+  //   conversationally and never falls into the off_topic branch ──────
+  if (GREETING_RE.test(text)) return "knowledge"
+
+  // ── Fast-path 3: contains ENR number ─────────────────────────────
   if (ENR_PATTERN.test(text)) return "live_data"
 
   // ── Gemini classification call ────────────────────────────────────

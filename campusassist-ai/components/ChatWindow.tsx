@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Send } from "lucide-react"
 import { ChecklistCard } from "./ChecklistCard"
+import type { AIResponse } from "@/types"
 
 interface Message {
   role:    "user" | "assistant"

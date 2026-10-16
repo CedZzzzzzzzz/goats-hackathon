@@ -7,18 +7,17 @@ import {
   Home,
   Calendar,
   Settings,
-  MessageCircle,
   GraduationCap,
   User,
 } from "lucide-react"
 import { supabaseBrowser } from "@/lib/supabase-browser"
 import { RoleToggle } from "@/components/RoleToggle"
+import { ChatBubble } from "@/components/ChatBubble"
 
 const NAV = [
-  { label: "Home",         href: "/user",          icon: Home,          exact: true },
-  { label: "Schedule",     href: "/user/track",     icon: Calendar,      exact: false },
-  { label: "Settings",     href: "/settings",       icon: Settings,      exact: false },
-  { label: "AI Assistant", href: "/user/chat",      icon: MessageCircle, exact: false },
+  { label: "Home",     href: "/user",       icon: Home,     exact: true },
+  { label: "Schedule", href: "/user/track", icon: Calendar, exact: false },
+  { label: "Settings", href: "/settings",   icon: Settings, exact: false },
 ]
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
@@ -125,6 +124,9 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
       </div>
+
+      {/* ── Floating AI chat bubble ── */}
+      <ChatBubble />
     </div>
   )
 }
