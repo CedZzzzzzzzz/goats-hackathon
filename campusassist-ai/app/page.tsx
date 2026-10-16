@@ -70,6 +70,7 @@ export default function HomePage() {
             <div className="photo absolute left-0 top-16 w-[62%] h-[300px] md:h-[330px] rounded-[1.75rem] overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                className="w-full h-full object-cover"
                 src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&q=80&w=700"
                 alt="Campus building"
               />
@@ -79,6 +80,7 @@ export default function HomePage() {
             <div className="photo absolute right-0 top-0 w-[42%] h-[175px] md:h-[195px] rounded-3xl overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                className="w-full h-full object-cover"
                 src="https://images.unsplash.com/photo-1523580494863-6f303122450f?auto=format&fit=crop&q=80&w=500"
                 alt="Graduates"
               />
@@ -88,15 +90,16 @@ export default function HomePage() {
             <div className="photo absolute right-3 top-[200px] md:top-[220px] w-[38%] h-[190px] md:h-[210px] rounded-3xl overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                className="w-full h-full object-cover"
                 src="https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&q=80&w=500"
                 alt="Campus hall"
               />
             </div>
 
-            {/* Floating crest badge */}
-            <div className="fl absolute left-[42%] top-0 z-20 w-32 h-32 rounded-full bg-white border-4 border-brand-gold shadow-2xl flex items-center justify-center">
+            {/* Floating crest badge — sits between top photos */}
+            <div className="fl absolute left-[38%] top-[60px] z-20 w-28 h-28 rounded-full bg-white border-4 border-brand-gold shadow-2xl flex items-center justify-center">
               <div className="flex flex-col items-center justify-center text-brand-crimson">
-                <svg className="w-10 h-10 text-brand-gold" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-9 h-9 text-brand-gold" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
                 </svg>
                 <span className="text-[8px] font-extrabold uppercase tracking-wider text-brand-crimson mt-1">PUPila</span>
@@ -104,11 +107,11 @@ export default function HomePage() {
             </div>
 
             {/* Glass enrollment chip */}
-            <div className="glass absolute left-[34%] bottom-4 z-20 rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 text-xs font-bold text-white shadow-xl">
+            <div className="absolute left-[28%] bottom-6 z-20 rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5 text-xs font-bold text-brand-navy bg-white shadow-xl border border-gray-100">
               <span className="flex -space-x-2">
-                <span className="w-6 h-6 rounded-full bg-rose-200 border-2 border-white/80" />
-                <span className="w-6 h-6 rounded-full bg-brand-gold border-2 border-white/80" />
-                <span className="w-6 h-6 rounded-full bg-white border-2 border-white/80" />
+                <span className="w-6 h-6 rounded-full bg-rose-200 border-2 border-white" />
+                <span className="w-6 h-6 rounded-full bg-brand-gold border-2 border-white" />
+                <span className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white" />
               </span>
               42+ enrolled in the last hour
             </div>
